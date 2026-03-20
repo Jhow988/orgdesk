@@ -4,7 +4,7 @@ WORKDIR /app
 
 FROM base AS deps
 COPY app/package.json app/package-lock.json ./
-RUN npm ci
+RUN NODE_ENV=development npm ci
 
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
