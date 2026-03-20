@@ -1,0 +1,474 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ORG_ADMIN
+  ORG_FINANCE
+  ORG_SUPPORT
+  CLIENT_PORTAL
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_CLIENT
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum BoletoStatus {
+  PENDING
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+enum InvoiceType {
+  NFE
+  NFSE
+}
+
+enum InvoiceStatus {
+  PENDING
+  ISSUED
+  CANCELLED
+}
+
+enum CampaignStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  COMPLETED
+  ARCHIVED
+}
+
+enum SendStatus {
+  PENDING
+  SENT
+  FAILED
+  NO_EMAIL
+  NO_CADASTRO
+  SIMULATED
+}
+
+enum NotificationType {
+  TICKET_NEW
+  TICKET_REPLY
+  TICKET_STATUS_CHANGE
+  TICKET_ASSIGNED
+  BOLETO_DUE
+  BOLETO_OVERDUE
+  BOLETO_PAID
+  INVOICE_ISSUED
+  CAMPAIGN_COMPLETED
+  PORTAL_INVITE
+}
+
+model Organization {
+  id          String   @id @default(cuid())
+  slug        String   @unique
+  name        String
+  cnpj        String?
+  logo_url    String?
+  plan        String   @default("free")
+  is_active   Boolean  @default(true)
+
+  smtp_host     String?
+  smtp_port     Int?    @default(465)
+  smtp_user     String?
+  smtp_pass_enc String?
+  smtp_from     String?
+  smtp_use_tls  Boolean @default(true)
+  smtp_verified Boolean @default(false)
+
+  send_interval_sec Int      @default(15)
+  cnpjs_ignore      String[] @default([])
+
+  sla_low              Int @default(72)
+  sla_medium           Int @default(24)
+  sla_high             Int @default(8)
+  sla_critical         Int @default(2)
+  sla_auto_close_hours Int @default(72)
+
+  webhook_url    String?
+  webhook_secret String?
+
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  memberships    Membership[]
+  clients        Client[]
+  campaigns      Campaign[]
+  boletos        Boleto[]
+  invoices       Invoice[]
+  tickets        Ticket[]
+  notifications  Notification[]
+  activity_log   ActivityLog[]
+  email_template EmailTemplate?
+  webhook_events WebhookEvent[]
+
+  @@map("organizations")
+}
+
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  password_hash  String
+  name           String
+  avatar_url     String?
+  role           UserRole @default(ORG_ADMIN)
+  email_verified Boolean  @default(false)
+  is_active      Boolean  @default(true)
+  last_login_at  DateTime?
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  memberships      Membership[]
+  client_contacts  ClientContact[]
+  assigned_tickets Ticket[]        @relation("AssignedTickets")
+  ticket_messages  TicketMessage[]
+  notifications    Notification[]
+  activity_log     ActivityLog[]
+
+  @@map("users")
+}
+
+model Membership {
+  id              String   @id @default(cuid())
+  user_id         String
+  organization_id String
+  role            UserRole
+  is_active       Boolean  @default(true)
+  invited_by      String?
+  invited_at      DateTime?
+  accepted_at     DateTime?
+  created_at      DateTime @default(now())
+
+  user         User         @relation(fields: [user_id], references: [id])
+  organization Organization @relation(fields: [organization_id], references: [id])
+
+  @@unique([user_id, organization_id])
+  @@index([organization_id])
+  @@map("memberships")
+}
+
+model Client {
+  id              String   @id @default(cuid())
+  organization_id String
+  cnpj            String
+  name            String
+  trade_name      String?
+  email           String?
+  email_nfe       String?
+  email_boleto    String?
+  phone           String?
+  address         String?
+  notes           String?
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  organization Organization  @relation(fields: [organization_id], references: [id])
+  contacts     ClientContact[]
+  boletos      Boleto[]
+  invoices     Invoice[]
+  tickets      Ticket[]
+
+  @@unique([organization_id, cnpj])
+  @@index([organization_id])
+  @@map("clients")
+}
+
+model ClientContact {
+  id             String    @id @default(cuid())
+  client_id      String
+  user_id        String
+  is_primary     Boolean   @default(false)
+  invite_token   String?   @unique
+  invite_expires DateTime?
+  created_at     DateTime  @default(now())
+
+  client Client @relation(fields: [client_id], references: [id])
+  user   User   @relation(fields: [user_id], references: [id])
+
+  @@unique([client_id, user_id])
+  @@index([client_id])
+  @@map("client_contacts")
+}
+
+model Boleto {
+  id               String      @id @default(cuid())
+  organization_id  String
+  client_id        String
+  number           String?
+  description      String?
+  amount           Decimal     @db.Decimal(12, 2)
+  due_date         DateTime
+  status           BoletoStatus @default(PENDING)
+  paid_at          DateTime?
+  paid_amount      Decimal?    @db.Decimal(12, 2)
+  barcode          String?
+  pdf_key          String?
+  pdf_size_kb      Float?
+  campaign_send_id String?     @unique
+  notes            String?
+  created_at       DateTime    @default(now())
+  updated_at       DateTime    @updatedAt
+
+  organization  Organization  @relation(fields: [organization_id], references: [id])
+  client        Client        @relation(fields: [client_id], references: [id])
+  campaign_send CampaignSend? @relation(fields: [campaign_send_id], references: [id])
+
+  @@index([organization_id])
+  @@index([organization_id, client_id])
+  @@index([organization_id, status])
+  @@index([organization_id, due_date])
+  @@map("boletos")
+}
+
+model Invoice {
+  id               String        @id @default(cuid())
+  organization_id  String
+  client_id        String
+  type             InvoiceType   @default(NFSE)
+  status           InvoiceStatus @default(ISSUED)
+  number           String?
+  series           String?
+  issue_date       DateTime
+  amount           Decimal       @db.Decimal(12, 2)
+  description      String?
+  pdf_key          String?
+  xml_key          String?
+  pdf_size_kb      Float?
+  campaign_send_id String?       @unique
+  notes            String?
+  created_at       DateTime      @default(now())
+  updated_at       DateTime      @updatedAt
+
+  organization  Organization  @relation(fields: [organization_id], references: [id])
+  client        Client        @relation(fields: [client_id], references: [id])
+  campaign_send CampaignSend? @relation(fields: [campaign_send_id], references: [id])
+
+  @@index([organization_id])
+  @@index([organization_id, client_id])
+  @@index([organization_id, status])
+  @@index([organization_id, issue_date])
+  @@map("invoices")
+}
+
+model Campaign {
+  id              String         @id @default(cuid())
+  organization_id String
+  slug            String
+  month_year      String
+  label           String
+  status          CampaignStatus @default(DRAFT)
+  pdf_nf_key      String?
+  pdf_boleto_key  String?
+  kb_nf           Float?
+  kb_boleto       Float?
+  started_at      DateTime?
+  completed_at    DateTime?
+  created_at      DateTime       @default(now())
+  updated_at      DateTime       @updatedAt
+
+  organization Organization   @relation(fields: [organization_id], references: [id])
+  sends        CampaignSend[]
+
+  @@unique([organization_id, slug])
+  @@index([organization_id])
+  @@map("campaigns")
+}
+
+model CampaignSend {
+  id           String     @id @default(cuid())
+  campaign_id  String
+  client_cnpj  String
+  client_name  String
+  emails       String[]
+  status       SendStatus @default(PENDING)
+  pixel_id     String?    @unique
+  is_simulated Boolean    @default(false)
+  sent_at      DateTime?
+  opened_at    DateTime?
+  open_count   Int        @default(0)
+  error_msg    String?
+  created_at   DateTime   @default(now())
+
+  campaign Campaign    @relation(fields: [campaign_id], references: [id])
+  logs     EmailLog[]
+  boleto   Boleto?
+  invoice  Invoice?
+
+  @@index([campaign_id])
+  @@index([pixel_id])
+  @@map("campaign_sends")
+}
+
+model EmailLog {
+  id         String   @id @default(cuid())
+  send_id    String
+  type       String
+  message    String
+  created_at DateTime @default(now())
+
+  send CampaignSend @relation(fields: [send_id], references: [id])
+
+  @@index([send_id])
+  @@map("email_logs")
+}
+
+model Ticket {
+  id              String         @id @default(cuid())
+  organization_id String
+  number          Int
+  client_id       String
+  assigned_to     String?
+  opened_by       String
+  opened_by_type  String
+  title           String
+  category        String?
+  status          TicketStatus   @default(OPEN)
+  priority        TicketPriority @default(MEDIUM)
+  sla_deadline    DateTime?
+  resolved_at     DateTime?
+  closed_at       DateTime?
+  auto_close_at   DateTime?
+  created_at      DateTime       @default(now())
+  updated_at      DateTime       @updatedAt
+
+  organization Organization     @relation(fields: [organization_id], references: [id])
+  client       Client           @relation(fields: [client_id], references: [id])
+  assignee     User?            @relation("AssignedTickets", fields: [assigned_to], references: [id])
+  messages     TicketMessage[]
+  attachments  TicketAttachment[]
+
+  @@unique([organization_id, number])
+  @@index([organization_id])
+  @@index([organization_id, client_id])
+  @@index([organization_id, status])
+  @@index([organization_id, assigned_to])
+  @@map("tickets")
+}
+
+model TicketMessage {
+  id          String   @id @default(cuid())
+  ticket_id   String
+  author_id   String
+  author_type String
+  body        String   @db.Text
+  is_internal Boolean  @default(false)
+  is_auto     Boolean  @default(false)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  ticket      Ticket             @relation(fields: [ticket_id], references: [id])
+  author      User               @relation(fields: [author_id], references: [id])
+  attachments TicketAttachment[]
+
+  @@index([ticket_id])
+  @@map("ticket_messages")
+}
+
+model TicketAttachment {
+  id         String   @id @default(cuid())
+  ticket_id  String
+  message_id String?
+  file_key   String
+  file_name  String
+  mime_type  String
+  size_kb    Float
+  created_at DateTime @default(now())
+
+  ticket  Ticket         @relation(fields: [ticket_id], references: [id])
+  message TicketMessage? @relation(fields: [message_id], references: [id])
+
+  @@index([ticket_id])
+  @@map("ticket_attachments")
+}
+
+model Notification {
+  id              String           @id @default(cuid())
+  organization_id String
+  user_id         String
+  type            NotificationType
+  title           String
+  body            String
+  link            String?
+  is_read         Boolean          @default(false)
+  read_at         DateTime?
+  metadata        Json?
+  created_at      DateTime         @default(now())
+
+  organization Organization @relation(fields: [organization_id], references: [id])
+  user         User         @relation(fields: [user_id], references: [id])
+
+  @@index([organization_id, user_id])
+  @@index([organization_id, user_id, is_read])
+  @@map("notifications")
+}
+
+model ActivityLog {
+  id              String   @id @default(cuid())
+  organization_id String?
+  user_id         String?
+  action          String
+  entity          String?
+  entity_id       String?
+  payload         Json?
+  ip_address      String?
+  user_agent      String?
+  created_at      DateTime @default(now())
+
+  organization Organization? @relation(fields: [organization_id], references: [id])
+  user         User?         @relation(fields: [user_id], references: [id])
+
+  @@index([organization_id])
+  @@index([organization_id, entity, entity_id])
+  @@index([created_at])
+  @@map("activity_log")
+}
+
+model EmailTemplate {
+  id              String   @id @default(cuid())
+  organization_id String   @unique
+  subject         String   @default("Segue em anexo sua NF e Boleto referente a {{month_year}}")
+  body            String   @db.Text
+  updated_at      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organization_id], references: [id])
+
+  @@map("email_templates")
+}
+
+model WebhookEvent {
+  id              String   @id @default(cuid())
+  organization_id String
+  event_type      String
+  payload         Json
+  status          String   @default("pending")
+  attempts        Int      @default(0)
+  last_attempt_at DateTime?
+  delivered_at    DateTime?
+  error_msg       String?
+  created_at      DateTime @default(now())
+
+  organization Organization @relation(fields: [organization_id], references: [id])
+
+  @@index([organization_id])
+  @@index([organization_id, status])
+  @@map("webhook_events")
+}
