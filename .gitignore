@@ -1,0 +1,13 @@
+# Ambiente
+app/.env
+app/.env.local
+app/.env.production
+
+# Dependências
+app/node_modules/
+
+# Build
+app/.next/
+
+# Arquivos temporários
+*.txt
