@@ -2,9 +2,15 @@ FROM node:20-alpine AS base
 RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 
+# Install all deps for building (including devDeps for tailwind, typescript, etc.)
 FROM base AS deps
 COPY app/package.json app/package-lock.json ./
 RUN NODE_ENV=development npm ci
+
+# Install only production deps (includes prisma CLI and all its transitive deps)
+FROM base AS prod-deps
+COPY app/package.json app/package-lock.json ./
+RUN npm ci --omit=dev
 
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
@@ -25,10 +31,10 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
-COPY --from=builder /app/node_modules/.bin/ ./node_modules/.bin/
-COPY --from=builder /app/node_modules/prisma ./node_modules/prisma
-COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
-COPY --from=builder /app/node_modules/valibot ./node_modules/valibot
+
+# Use full production node_modules (includes prisma CLI + all deps like valibot, pathe, etc.)
+COPY --from=prod-deps /app/node_modules ./node_modules
+
 COPY --chown=nextjs:nodejs app/entrypoint.sh ./entrypoint.sh
 RUN chmod +x ./entrypoint.sh
 
