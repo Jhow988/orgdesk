@@ -2,25 +2,22 @@
 
 import { signIn, signOut } from '@/auth'
 import { AuthError } from 'next-auth'
-import { redirect } from 'next/navigation'
 
 export type LoginState = { error?: string } | undefined
 
-export async function loginAction(prevState: LoginState, formData: FormData) {
+export async function loginAction(_prevState: LoginState, formData: FormData) {
   try {
     await signIn('credentials', {
       email: formData.get('email') as string,
       password: formData.get('password') as string,
-      redirect: false,
+      redirectTo: '/dashboard',
     })
   } catch (error) {
     if (error instanceof AuthError) {
       return { error: 'Email ou senha incorretos.' }
     }
-    return { error: 'Ocorreu um erro inesperado. Tente novamente.' }
+    throw error // propaga o NEXT_REDIRECT do NextAuth
   }
-
-  redirect('/dashboard')
 }
 
 export async function logoutAction() {
