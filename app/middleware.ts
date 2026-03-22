@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { parseSubdomain, resolveOrganizationBySlug } from '@/lib/tenant'
+import { parseSubdomain } from '@/lib/tenant'
 
 // Rotas que não precisam de tenant
 const PUBLIC_PATHS = [
@@ -28,22 +28,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Resolve o tenant
-  const org = await resolveOrganizationBySlug(slug)
-
-  if (!org) {
-    return NextResponse.rewrite(new URL('/not-found', request.url))
-  }
-
-  if (!org.is_active) {
-    return NextResponse.rewrite(new URL('/suspended', request.url))
-  }
-
-  // Injeta contexto nos headers para uso nas API routes e Server Components
+  // Injeta slug nos headers — resolução completa do tenant nas API routes/Server Components
   const requestHeaders = new Headers(request.headers)
-  requestHeaders.set('x-org-id', org.id)
-  requestHeaders.set('x-org-slug', org.slug)
-  requestHeaders.set('x-org-name', org.name)
+  requestHeaders.set('x-org-slug', slug)
   requestHeaders.set('x-is-portal', isPortal ? '1' : '0')
 
   // Rewrite de URL para rotas do portal
