@@ -13,7 +13,7 @@ const PUBLIC_PATHS = [
   '/robots.txt',
 ]
 
-export default auth(async function middleware(req: NextRequest & { auth: unknown }) {
+export default auth(async function proxy(req: NextRequest & { auth: unknown }) {
   const { pathname } = req.nextUrl
   const hostname = req.headers.get('host') || ''
 

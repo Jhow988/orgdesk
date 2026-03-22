@@ -1,61 +1,74 @@
 import { PrismaClient } from '@prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
 import { AsyncLocalStorage } from 'async_hooks'
 
 export const tenantStorage = new AsyncLocalStorage<{ orgId: string }>()
 
-const prismaClientSingleton = () => {
+const TENANT_MODELS = [
+  'Client', 'ClientContact', 'Boleto', 'Invoice', 'Campaign',
+  'CampaignSend', 'EmailLog', 'Ticket', 'TicketMessage', 'TicketAttachment',
+  'Notification', 'ActivityLog', 'EmailTemplate', 'WebhookEvent', 'Membership',
+]
+
+function createClient() {
+  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! })
   const client = new PrismaClient({
+    adapter,
     log: process.env.NODE_ENV === 'development' ? ['query', 'error', 'warn'] : ['error'],
-  })
+  }).$extends({
+    query: {
+      $allModels: {
+        async $allOperations({ model, operation, args, query }) {
+          const store = tenantStorage.getStore()
+          const orgId = store?.orgId
 
-  client.$use(async (params, next) => {
-    const store = tenantStorage.getStore()
-    const orgId = store?.orgId
+          if (!orgId || !model || !TENANT_MODELS.includes(model)) {
+            return query(args)
+          }
 
-    if (!orgId) return next(params)
+          const a = args as Record<string, unknown>
 
-    // Injeta organization_id em creates (exceto Organization e User que são globais)
-    const TENANT_MODELS = [
-      'Client', 'ClientContact', 'Boleto', 'Invoice', 'Campaign',
-      'CampaignSend', 'EmailLog', 'Ticket', 'TicketMessage', 'TicketAttachment',
-      'Notification', 'ActivityLog', 'EmailTemplate', 'WebhookEvent', 'Membership',
-    ]
+          if (operation === 'create') {
+            a['data'] = { ...(a['data'] as object), organization_id: orgId }
+          }
+          if (operation === 'createMany') {
+            a['data'] = (a['data'] as Record<string, unknown>[]).map(d => ({
+              ...d,
+              organization_id: orgId,
+            }))
+          }
+          if (['findMany', 'findFirst', 'findFirstOrThrow', 'count', 'aggregate', 'groupBy'].includes(operation)) {
+            a['where'] = { ...(a['where'] as object), organization_id: orgId }
+          }
+          if (['update', 'updateMany', 'delete', 'deleteMany', 'upsert'].includes(operation)) {
+            a['where'] = { ...(a['where'] as object), organization_id: orgId }
+          }
 
-    if (params.model && TENANT_MODELS.includes(params.model)) {
-      if (params.action === 'create') {
-        params.args.data = { ...params.args.data, organization_id: orgId }
-      }
-      if (params.action === 'createMany') {
-        params.args.data = params.args.data.map((d: Record<string, unknown>) => ({
-          ...d,
-          organization_id: orgId,
-        }))
-      }
-      if (['findMany', 'findFirst', 'findFirstOrThrow', 'count', 'aggregate', 'groupBy'].includes(params.action)) {
-        params.args = params.args ?? {}
-        params.args.where = { ...params.args.where, organization_id: orgId }
-      }
-      if (['update', 'updateMany', 'delete', 'deleteMany', 'upsert'].includes(params.action)) {
-        params.args = params.args ?? {}
-        params.args.where = { ...params.args.where, organization_id: orgId }
-      }
-    }
-
-    return next(params)
+          return query(a)
+        },
+      },
+    },
   })
 
   return client
 }
 
-type PrismaClientSingleton = ReturnType<typeof prismaClientSingleton>
-
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClientSingleton | undefined
+function createAdminClient() {
+  const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! })
+  return new PrismaClient({ adapter })
 }
 
-export const prisma = globalForPrisma.prisma ?? prismaClientSingleton()
+type PrismaClientType = ReturnType<typeof createClient>
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClientType | undefined
+  adminPrisma: PrismaClient | undefined
+}
 
-// Client admin sem RLS (para operações de super admin e resolução de tenant)
-export const adminPrisma = new PrismaClient()
+export const prisma = globalForPrisma.prisma ?? createClient()
+export const adminPrisma = globalForPrisma.adminPrisma ?? createAdminClient()
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForPrisma.prisma = prisma
+  globalForPrisma.adminPrisma = adminPrisma
+}
