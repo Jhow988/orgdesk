@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { parseSubdomain } from '@/lib/tenant'
+import { parseSubdomain } from '@/lib/tenant-utils'
 
 // Rotas que não precisam de tenant
 const PUBLIC_PATHS = [
