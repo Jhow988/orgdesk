@@ -18,7 +18,7 @@ declare module 'next-auth' {
   }
 }
 
-declare module 'next-auth/jwt' {
+declare module '@auth/core/jwt' {
   interface JWT {
     id: string
     role: string
@@ -31,6 +31,7 @@ const loginSchema = z.object({
 })
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  trustHost: true,
   session: { strategy: 'jwt' },
   pages: {
     signIn: '/login',
@@ -44,8 +45,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return token
     },
     session({ session, token }) {
-      session.user.id = token.id
-      session.user.role = token.role
+      session.user.id = token.id as string
+      session.user.role = token.role as string
       return session
     },
   },
@@ -68,7 +69,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const valid = await bcrypt.compare(parsed.data.password, user.password_hash)
         if (!valid) return null
 
-        // Update last login
         await adminPrisma.user.update({
           where: { id: user.id },
           data: { last_login_at: new Date() },
