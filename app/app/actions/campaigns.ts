@@ -237,4 +237,5 @@ export async function deleteCampaignAction(campaignId: string): Promise<{ error?
   await prisma.campaign.delete({ where: { id: campaignId } })
 
   revalidatePath('/campaigns')
+  return {}
 }
