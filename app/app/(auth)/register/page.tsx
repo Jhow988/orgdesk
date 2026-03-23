@@ -11,12 +11,16 @@ function Field({
   type = 'text',
   placeholder,
   error,
+  defaultValue,
+  minLength,
 }: {
   label: string
   name: string
   type?: string
   placeholder?: string
   error?: string
+  defaultValue?: string
+  minLength?: number
 }) {
   return (
     <div className="space-y-1.5">
@@ -25,6 +29,8 @@ function Field({
         name={name}
         type={type}
         placeholder={placeholder}
+        defaultValue={defaultValue}
+        minLength={minLength}
         className={`w-full rounded-lg border px-3 py-2.5 text-sm text-white bg-zinc-900 placeholder-zinc-600 focus:outline-none focus:border-zinc-500 transition-colors ${error ? 'border-red-700' : 'border-zinc-700'}`}
       />
       {error && <p className="text-xs text-red-400">{error}</p>}
@@ -56,12 +62,14 @@ export default function RegisterPage() {
             name="org_name"
             placeholder="Acme Ltda"
             error={state?.fieldErrors?.org_name}
+            defaultValue={state?.fields?.org_name}
           />
           <Field
             label="CNPJ"
             name="cnpj"
             placeholder="00.000.000/0000-00"
             error={state?.fieldErrors?.cnpj}
+            defaultValue={state?.fields?.cnpj}
           />
         </div>
 
@@ -72,6 +80,7 @@ export default function RegisterPage() {
             name="admin_name"
             placeholder="João Silva"
             error={state?.fieldErrors?.admin_name}
+            defaultValue={state?.fields?.admin_name}
           />
           <Field
             label="Email *"
@@ -79,6 +88,7 @@ export default function RegisterPage() {
             type="email"
             placeholder="joao@empresa.com.br"
             error={state?.fieldErrors?.email}
+            defaultValue={state?.fields?.email}
           />
           <Field
             label="Senha *"
@@ -86,6 +96,7 @@ export default function RegisterPage() {
             type="password"
             placeholder="Mínimo 8 caracteres"
             error={state?.fieldErrors?.password}
+            minLength={8}
           />
           <Field
             label="Confirmar senha *"
@@ -93,6 +104,7 @@ export default function RegisterPage() {
             type="password"
             placeholder="Repita a senha"
             error={state?.fieldErrors?.password_confirm}
+            minLength={8}
           />
         </div>
 

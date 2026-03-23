@@ -17,7 +17,11 @@ const registerSchema = z.object({
   path: ['password_confirm'],
 })
 
-export type RegisterState = { error?: string; fieldErrors?: Record<string, string> } | undefined
+export type RegisterState = {
+  error?: string
+  fieldErrors?: Record<string, string>
+  fields?: Record<string, string>
+} | undefined
 
 export async function registerAction(_prevState: RegisterState, formData: FormData): Promise<RegisterState> {
   const raw = {
@@ -29,6 +33,13 @@ export async function registerAction(_prevState: RegisterState, formData: FormDa
     password_confirm: formData.get('password_confirm') as string,
   }
 
+  const fields = {
+    org_name: raw.org_name ?? '',
+    cnpj: raw.cnpj ?? '',
+    admin_name: raw.admin_name ?? '',
+    email: raw.email ?? '',
+  }
+
   const parsed = registerSchema.safeParse(raw)
   if (!parsed.success) {
     const fieldErrors: Record<string, string> = {}
@@ -36,7 +47,7 @@ export async function registerAction(_prevState: RegisterState, formData: FormDa
       const key = issue.path[0] as string
       fieldErrors[key] = issue.message
     }
-    return { fieldErrors }
+    return { fieldErrors, fields }
   }
 
   const { org_name, cnpj, admin_name, email, password } = parsed.data
