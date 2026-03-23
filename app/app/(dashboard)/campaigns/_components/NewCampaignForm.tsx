@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState, useRef, useState } from 'react'
+import { useActionState, useEffect, useRef, useState } from 'react'
 import { Upload, X, FileText, RotateCcw, Plus, Loader2 } from 'lucide-react'
 import type { CampaignState } from '@/app/actions/campaigns'
 
@@ -69,7 +69,17 @@ function FileButton({
 export function NewCampaignForm({ action }: Props) {
   const [state, formAction, isPending] = useActionState(action, null)
   const [open, setOpen] = useState(false)
+  const [formKey, setFormKey] = useState(0)
   const formRef = useRef<HTMLFormElement>(null)
+  const wasPending = useRef(false)
+
+  useEffect(() => {
+    if (wasPending.current && !isPending && !state?.error) {
+      setFormKey(k => k + 1)
+      setOpen(false)
+    }
+    wasPending.current = isPending
+  }, [isPending, state])
 
   if (!open) {
     return (
@@ -90,7 +100,7 @@ export function NewCampaignForm({ action }: Props) {
         </div>
       )}
 
-      <form ref={formRef} action={formAction}>
+      <form key={formKey} ref={formRef} action={formAction}>
         <div className="flex flex-wrap items-end gap-3">
           <div>
             <p className="mb-1 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
