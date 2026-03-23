@@ -4,18 +4,21 @@ import { logoutAction } from '@/app/actions/auth'
 import Link from 'next/link'
 
 const NAV_ITEMS = [
-  { href: '/dashboard', label: 'Visão Geral', icon: '◈' },
-  { href: '/clients', label: 'Clientes', icon: '◉' },
-  { href: '/boletos', label: 'Boletos', icon: '◎' },
-  { href: '/invoices', label: 'Notas Fiscais', icon: '◇' },
-  { href: '/campaigns', label: 'Campanhas', icon: '◆' },
-  { href: '/tickets', label: 'Chamados', icon: '◐' },
-  { href: '/settings', label: 'Configurações', icon: '◈' },
+  { href: '/dashboard', label: 'Visão Geral', icon: '◈', roles: null },
+  { href: '/organizations', label: 'Organizações', icon: '◫', roles: ['SUPER_ADMIN'] },
+  { href: '/clients', label: 'Clientes', icon: '◉', roles: null },
+  { href: '/boletos', label: 'Boletos', icon: '◎', roles: null },
+  { href: '/invoices', label: 'Notas Fiscais', icon: '◇', roles: null },
+  { href: '/campaigns', label: 'Campanhas', icon: '◆', roles: null },
+  { href: '/tickets', label: 'Chamados', icon: '◐', roles: null },
+  { href: '/settings', label: 'Configurações', icon: '◈', roles: null },
 ]
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
   if (!session?.user) redirect('/login')
+
+  const userRole = session.user.role as string
 
   return (
     <div className="flex h-full min-h-screen bg-zinc-950 text-zinc-100">
@@ -26,7 +29,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
         </div>
 
         <nav className="flex-1 space-y-0.5 p-2 pt-3">
-          {NAV_ITEMS.map(item => (
+          {NAV_ITEMS.filter(item => !item.roles || item.roles.includes(userRole)).map(item => (
             <Link
               key={item.href}
               href={item.href}
