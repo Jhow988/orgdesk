@@ -1,5 +1,5 @@
 import { auth } from '@/auth'
-import { prisma } from '@/lib/prisma'
+import { adminPrisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import { createCampaignAction } from '@/app/actions/campaigns'
 import { NewCampaignForm } from './_components/NewCampaignForm'
@@ -9,7 +9,7 @@ export default async function CampaignsPage() {
   const session = await auth()
   if (!session?.user?.orgId) redirect('/dashboard')
 
-  const campaigns = await prisma.campaign.findMany({
+  const campaigns = await adminPrisma.campaign.findMany({
     where: { organization_id: session.user.orgId },
     orderBy: { created_at: 'desc' },
     select: {
@@ -46,7 +46,7 @@ export default async function CampaignsPage() {
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {campaigns.map(c => (
-              <CampaignCard key={c.id} campaign={c as any} />
+              <CampaignCard key={c.id} campaign={{ ...c, created_at: c.created_at.toISOString() }} />
             ))}
           </div>
         )}

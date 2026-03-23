@@ -12,7 +12,7 @@ interface Campaign {
   status: string
   kb_nf: number | null
   kb_boleto: number | null
-  created_at: Date
+  created_at: string
 }
 
 export function CampaignCard({ campaign }: { campaign: Campaign }) {
