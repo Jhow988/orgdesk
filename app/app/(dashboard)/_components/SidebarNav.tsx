@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Building2, FileText, Zap, Receipt,
   Megaphone, BarChart2, MessageSquare, Users, Package,
   UserCog, FileCheck, FileSignature, Briefcase, Shield,
-  Settings, MapPin, Send,
+  Settings, MapPin, Send, SendHorizonal,
 } from 'lucide-react'
 
 interface NavItem {
@@ -32,11 +32,12 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Financeiro',
     items: [
-      { href: '/campaigns',               label: 'Campanhas',          icon: Megaphone },
-      { href: '/invoices',                label: 'Contas a Receber',   icon: Receipt },
-      { href: '/financeiro/rastreamento', label: 'Rastreamento',       icon: MapPin },
-      { href: '/financeiro/log-envios',   label: 'Log de Envios',      icon: Send },
-      { href: '/financeiro/relatorios',   label: 'Relatórios',         icon: BarChart2 },
+      { href: '/financeiro/enviar-cobranca', label: 'Enviar Cobrança',   icon: SendHorizonal },
+      { href: '/campaigns',                  label: 'Campanhas',         icon: Megaphone },
+      { href: '/invoices',                   label: 'Contas a Receber',  icon: Receipt },
+      { href: '/financeiro/rastreamento',    label: 'Rastreamento',      icon: MapPin },
+      { href: '/financeiro/log-envios',      label: 'Log de Envios',     icon: Send },
+      { href: '/financeiro/relatorios',      label: 'Relatórios',        icon: BarChart2 },
     ],
   },
   {
