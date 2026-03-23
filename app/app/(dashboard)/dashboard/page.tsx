@@ -1,9 +1,6 @@
 import { auth } from '@/auth'
 import { adminPrisma } from '@/lib/prisma'
-import { headers } from 'next/headers'
-import { resolveOrganizationBySlug } from '@/lib/tenant'
-import { tenantStorage } from '@/lib/prisma'
-import { prisma } from '@/lib/prisma'
+import { tenantStorage, prisma } from '@/lib/prisma'
 
 async function getSuperAdminStats() {
   const [orgsCount, usersCount, ticketsCount, boletosCount] = await Promise.all([
@@ -29,22 +26,21 @@ async function getOrgStats(orgId: string) {
 
 export default async function DashboardPage() {
   const session = await auth()
-  const hdrs = await headers()
-  const orgSlug = hdrs.get('x-org-slug')
-
   const isSuperAdmin = session?.user?.role === 'SUPER_ADMIN'
+  const orgId = session?.user?.orgId ?? null
 
   let stats: Record<string, number> = {}
   let orgName = ''
 
-  if (isSuperAdmin && !orgSlug) {
+  if (isSuperAdmin) {
     stats = await getSuperAdminStats()
-  } else if (orgSlug) {
-    const org = await resolveOrganizationBySlug(orgSlug)
-    if (org) {
-      orgName = org.name
-      stats = await getOrgStats(org.id)
-    }
+  } else if (orgId) {
+    const org = await adminPrisma.organization.findUnique({
+      where: { id: orgId },
+      select: { name: true },
+    })
+    orgName = org?.name ?? ''
+    stats = await getOrgStats(orgId)
   }
 
   return (
@@ -58,14 +54,14 @@ export default async function DashboardPage() {
         </p>
       </div>
 
-      {isSuperAdmin && !orgSlug ? (
+      {isSuperAdmin ? (
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StatCard label="Organizações ativas" value={stats.orgsCount ?? 0} />
           <StatCard label="Usuários ativos" value={stats.usersCount ?? 0} />
           <StatCard label="Chamados total" value={stats.ticketsCount ?? 0} />
           <StatCard label="Boletos total" value={stats.boletosCount ?? 0} />
         </div>
-      ) : orgSlug ? (
+      ) : orgId ? (
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           <StatCard label="Clientes" value={stats.clientsCount ?? 0} />
           <StatCard label="Boletos" value={stats.boletosCount ?? 0} />
@@ -73,7 +69,7 @@ export default async function DashboardPage() {
           <StatCard label="Chamados total" value={stats.ticketsCount ?? 0} />
         </div>
       ) : (
-        <p className="text-sm text-zinc-500">Nenhuma organização selecionada.</p>
+        <p className="text-sm text-zinc-500">Nenhuma organização associada à sua conta.</p>
       )}
     </div>
   )
