@@ -63,19 +63,19 @@ export function OrgForm({ action, defaultValues, isEdit }: OrgFormProps) {
 
       <div className="grid gap-5 sm:grid-cols-2">
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-zinc-500">Nome da organização *</label>
+          <label className="text-xs font-medium text-zinc-400">Nome da organização *</label>
           <input
             name="name"
             required
             defaultValue={defaultValues?.name}
             onChange={handleNameChange}
             placeholder="Acme Ltda"
-            className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-400 focus:outline-none"
+            className="w-full rounded-md border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:border-white/20 focus:ring-0 focus:outline-none"
           />
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-zinc-500">Slug *</label>
+          <label className="text-xs font-medium text-zinc-400">Slug *</label>
           <input
             name="slug"
             required
@@ -84,27 +84,27 @@ export function OrgForm({ action, defaultValues, isEdit }: OrgFormProps) {
             onChange={handleSlugChange}
             placeholder="acme"
             readOnly={isEdit}
-            className={`w-full rounded-md border border-zinc-300 bg-white px-3 py-2 font-mono text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-400 focus:outline-none ${isEdit ? 'cursor-not-allowed opacity-60' : ''}`}
+            className={`w-full rounded-md border border-white/[0.1] bg-white/[0.06] px-3 py-2 font-mono text-sm text-zinc-100 placeholder-zinc-600 focus:border-white/20 focus:ring-0 focus:outline-none ${isEdit ? 'cursor-not-allowed opacity-60' : ''}`}
           />
-          {!isEdit && <p className="text-xs text-zinc-400">Usado na URL: slug.orgdesk.com.br</p>}
+          {!isEdit && <p className="text-xs text-zinc-500">Usado na URL: slug.orgdesk.com.br</p>}
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-zinc-500">CNPJ</label>
+          <label className="text-xs font-medium text-zinc-400">CNPJ</label>
           <input
             name="cnpj"
             defaultValue={defaultValues?.cnpj ?? ''}
             placeholder="00.000.000/0000-00"
-            className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-400 focus:outline-none"
+            className="w-full rounded-md border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:border-white/20 focus:ring-0 focus:outline-none"
           />
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-zinc-500">Plano</label>
+          <label className="text-xs font-medium text-zinc-400">Plano</label>
           <select
             name="plan"
             defaultValue={defaultValues?.plan ?? 'free'}
-            className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-zinc-400 focus:outline-none"
+            className="w-full rounded-md border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-sm text-zinc-100 focus:border-white/20 focus:ring-0 focus:outline-none"
           >
             {PLANS.map(p => (
               <option key={p.value} value={p.value}>{p.label}</option>
@@ -114,11 +114,11 @@ export function OrgForm({ action, defaultValues, isEdit }: OrgFormProps) {
 
         {isEdit && (
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-zinc-500">Status</label>
+            <label className="text-xs font-medium text-zinc-400">Status</label>
             <select
               name="is_active"
               defaultValue={defaultValues?.is_active ? '1' : '0'}
-              className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-zinc-400 focus:outline-none"
+              className="w-full rounded-md border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-sm text-zinc-100 focus:border-white/20 focus:ring-0 focus:outline-none"
             >
               <option value="1">Ativa</option>
               <option value="0">Inativa</option>
@@ -131,11 +131,11 @@ export function OrgForm({ action, defaultValues, isEdit }: OrgFormProps) {
         <button
           type="submit"
           disabled={isPending}
-          className="rounded-md bg-white px-5 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-200 disabled:opacity-50 transition-colors"
+          className="rounded-md bg-white/[0.06] border border-white/[0.08] px-5 py-2 text-sm font-medium text-zinc-200 hover:bg-white/10 disabled:opacity-50 transition-colors"
         >
           {isPending ? 'Salvando...' : isEdit ? 'Salvar alterações' : 'Criar organização'}
         </button>
-        <Link href="/organizations" className="text-sm text-zinc-400 hover:text-zinc-700 transition-colors">
+        <Link href="/organizations" className="text-sm text-zinc-500 hover:text-zinc-200 transition-colors">
           Cancelar
         </Link>
       </div>

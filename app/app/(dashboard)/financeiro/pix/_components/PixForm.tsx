@@ -19,46 +19,46 @@ export function PixForm({ action, clients }: Props) {
       )}
 
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-500">Cliente *</label>
+        <label className="text-xs font-medium text-zinc-400">Cliente *</label>
         <select name="client_id" required
-          className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-zinc-400 focus:outline-none">
+          className="w-full rounded-md border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-sm text-zinc-100 focus:border-white/20 focus:outline-none">
           <option value="">Selecione um cliente</option>
           {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-500">Descrição *</label>
+        <label className="text-xs font-medium text-zinc-400">Descrição *</label>
         <input name="description" required placeholder="Ex: Mensalidade março/2026"
-          className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-400 focus:outline-none" />
+          className="w-full rounded-md border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:border-white/20 focus:outline-none" />
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-500">Valor (R$) *</label>
+        <label className="text-xs font-medium text-zinc-400">Valor (R$) *</label>
         <input name="amount" type="number" step="0.01" min="0.01" required
-          className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-zinc-400 focus:outline-none" />
+          className="w-full rounded-md border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-sm text-zinc-100 focus:border-white/20 focus:outline-none" />
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-500">Chave PIX</label>
+        <label className="text-xs font-medium text-zinc-400">Chave PIX</label>
         <input name="pix_key" placeholder="CPF, CNPJ, email ou chave aleatória"
-          className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-400 focus:outline-none" />
+          className="w-full rounded-md border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:border-white/20 focus:outline-none" />
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-500">Expira em</label>
+        <label className="text-xs font-medium text-zinc-400">Expira em</label>
         <input name="expires_at" type="date"
-          className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-zinc-400 focus:outline-none" />
+          className="w-full rounded-md border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-sm text-zinc-100 focus:border-white/20 focus:outline-none" />
       </div>
 
       <div className="space-y-1.5">
-        <label className="text-xs font-medium text-zinc-500">Observações</label>
+        <label className="text-xs font-medium text-zinc-400">Observações</label>
         <textarea name="notes" rows={2}
-          className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-zinc-400 focus:outline-none resize-none" />
+          className="w-full rounded-md border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-sm text-zinc-100 focus:border-white/20 focus:outline-none resize-none" />
       </div>
 
       <button type="submit" disabled={isPending}
-        className="w-full rounded-md bg-white px-5 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-200 disabled:opacity-50 transition-colors">
+        className="w-full rounded-md bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50 transition-colors">
         {isPending ? 'Criando...' : 'Criar cobrança'}
       </button>
     </form>

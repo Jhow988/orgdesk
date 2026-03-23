@@ -20,23 +20,23 @@ export default async function OrganizationsPage() {
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-700">Organizações</h1>
+          <h1 className="text-xl font-semibold text-zinc-100">Organizações</h1>
           <p className="mt-1 text-sm text-zinc-400">
             {orgs.length} organização{orgs.length !== 1 ? 's' : ''} cadastrada{orgs.length !== 1 ? 's' : ''}
           </p>
         </div>
         <Link
           href="/organizations/new"
-          className="rounded-md bg-white px-4 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-200 transition-colors"
+          className="rounded-md bg-white/[0.06] border border-white/[0.08] px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-white/10 transition-colors"
         >
           + Nova Organização
         </Link>
       </div>
 
-      <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] overflow-hidden">
+        <table className="w-full text-sm bg-transparent">
           <thead>
-            <tr className="border-b border-zinc-200 text-left text-xs text-zinc-400">
+            <tr className="border-b border-white/[0.08] text-left text-xs text-zinc-500">
               <th className="px-4 py-3 font-medium">Nome</th>
               <th className="px-4 py-3 font-medium">CNPJ</th>
               <th className="px-4 py-3 font-medium">Plano</th>
@@ -56,28 +56,28 @@ export default async function OrganizationsPage() {
               </tr>
             ) : (
               orgs.map((org) => (
-                <tr key={org.id} className="border-b border-zinc-200 last:border-0 hover:bg-zinc-50 transition-colors">
+                <tr key={org.id} className="border-b border-white/[0.06] last:border-0 hover:bg-white/[0.03] transition-colors">
                   <td className="px-4 py-3">
-                    <div className="font-medium text-zinc-900">{org.name}</div>
+                    <div className="font-medium text-zinc-100">{org.name}</div>
                     <div className="font-mono text-xs text-zinc-400">{org.slug}</div>
                   </td>
-                  <td className="px-4 py-3 text-zinc-500 text-xs">{org.cnpj || '—'}</td>
+                  <td className="px-4 py-3 text-zinc-400 text-xs">{org.cnpj || '—'}</td>
                   <td className="px-4 py-3">
-                    <span className="rounded bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500 capitalize">{org.plan}</span>
+                    <span className="rounded bg-white/[0.08] px-2 py-0.5 text-xs text-zinc-400 capitalize">{org.plan}</span>
                   </td>
                   <td className="px-4 py-3">
                     <SubscriptionBadge status={org.subscription_status} />
                   </td>
-                  <td className="px-4 py-3 text-zinc-500">{org._count.memberships}</td>
-                  <td className="px-4 py-3 text-zinc-500">{org._count.clients}</td>
-                  <td className="px-4 py-3 text-zinc-400 text-xs">
+                  <td className="px-4 py-3 text-zinc-400">{org._count.memberships}</td>
+                  <td className="px-4 py-3 text-zinc-400">{org._count.clients}</td>
+                  <td className="px-4 py-3 text-zinc-500 text-xs">
                     {new Date(org.created_at).toLocaleDateString('pt-BR')}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <Link
                         href={`/organizations/${org.id}`}
-                        className="text-xs text-zinc-500 hover:text-zinc-700 transition-colors"
+                        className="text-xs text-zinc-500 hover:text-zinc-200 transition-colors"
                       >
                         Gerenciar
                       </Link>

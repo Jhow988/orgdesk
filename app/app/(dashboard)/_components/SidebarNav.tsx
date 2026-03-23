@@ -2,128 +2,121 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useState } from 'react'
+import {
+  LayoutDashboard, Building2, FileText, Zap, Receipt,
+  Megaphone, BarChart2, MessageSquare, Users, Package,
+  UserCog, FileCheck, FileSignature, Briefcase, Shield,
+  Settings, ChevronDown,
+} from 'lucide-react'
 
 interface NavItem {
   href: string
   label: string
+  icon: React.ElementType
   roles?: string[]
 }
 
-interface NavGroup {
+interface NavSection {
   label: string
   items: NavItem[]
-  defaultOpen?: boolean
 }
 
-const NAV_GROUPS: NavGroup[] = [
+const NAV_SECTIONS: NavSection[] = [
   {
-    label: 'Geral',
-    defaultOpen: true,
+    label: '',
     items: [
-      { href: '/dashboard',    label: 'Visão Geral' },
-      { href: '/organizations', label: 'Organizações', roles: ['SUPER_ADMIN'] },
+      { href: '/dashboard',    label: 'Visão Geral',   icon: LayoutDashboard },
+      { href: '/organizations', label: 'Organizações', icon: Building2, roles: ['SUPER_ADMIN'] },
     ],
   },
   {
     label: 'Financeiro',
-    defaultOpen: true,
     items: [
-      { href: '/boletos',               label: 'Boletos' },
-      { href: '/financeiro/pix',        label: 'PIX' },
-      { href: '/invoices',              label: 'Notas Fiscais' },
-      { href: '/campaigns',             label: 'Campanhas' },
-      { href: '/financeiro/relatorios', label: 'Relatórios' },
+      { href: '/boletos',               label: 'Boletos',       icon: FileText },
+      { href: '/financeiro/pix',        label: 'PIX',           icon: Zap },
+      { href: '/invoices',              label: 'Notas Fiscais', icon: Receipt },
+      { href: '/campaigns',             label: 'Campanhas',     icon: Megaphone },
+      { href: '/financeiro/relatorios', label: 'Relatórios',    icon: BarChart2 },
     ],
   },
   {
-    label: 'Chamados',
-    defaultOpen: true,
+    label: 'Suporte',
     items: [
-      { href: '/tickets',            label: 'Chamados' },
-      { href: '/tickets/relatorios', label: 'Relatórios' },
+      { href: '/tickets',            label: 'Chamados',   icon: MessageSquare },
+      { href: '/tickets/relatorios', label: 'Relatórios', icon: BarChart2 },
     ],
   },
   {
     label: 'Cadastro',
-    defaultOpen: true,
     items: [
-      { href: '/clients',            label: 'Clientes' },
-      { href: '/comercial/products', label: 'Produtos/Serviços' },
-      { href: '/users',              label: 'Usuários' },
+      { href: '/clients',            label: 'Clientes',          icon: Users },
+      { href: '/comercial/products', label: 'Produtos/Serviços', icon: Package },
+      { href: '/users',              label: 'Usuários',          icon: UserCog },
     ],
   },
   {
     label: 'Vendas',
-    defaultOpen: true,
     items: [
-      { href: '/comercial/proposals', label: 'Propostas' },
-      { href: '/comercial/contracts', label: 'Contratos' },
-      { href: '/comercial/crm',       label: 'CRM' },
+      { href: '/comercial/proposals', label: 'Propostas', icon: FileCheck },
+      { href: '/comercial/contracts', label: 'Contratos', icon: FileSignature },
+      { href: '/comercial/crm',       label: 'CRM',       icon: Briefcase },
     ],
   },
   {
     label: 'Configuração',
-    defaultOpen: false,
     items: [
-      { href: '/settings/permissions', label: 'Permissões' },
-      { href: '/settings/company',     label: 'Dados da empresa' },
+      { href: '/settings/permissions', label: 'Permissões',       icon: Shield },
+      { href: '/settings/company',     label: 'Dados da empresa', icon: Settings },
     ],
   },
 ]
 
-function NavGroup({ group, userRole }: { group: NavGroup; userRole: string }) {
+function NavItem({ item }: { item: NavItem }) {
   const pathname = usePathname()
-  const visibleItems = group.items.filter(i => !i.roles || i.roles.includes(userRole))
-  if (visibleItems.length === 0) return null
-
-  const hasActive = visibleItems.some(i => pathname === i.href || pathname.startsWith(i.href + '/'))
-  const [open, setOpen] = useState(group.defaultOpen || hasActive)
+  const active = pathname === item.href || pathname.startsWith(item.href + '/')
+  const Icon = item.icon
 
   return (
-    <div>
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="flex w-full items-center justify-between px-3 py-1 mb-0.5 rounded-md hover:bg-zinc-100 transition-colors group"
-      >
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500 group-hover:text-zinc-400 transition-colors">
-          {group.label}
-        </span>
-        <span className={`text-zinc-400 text-xs transition-transform duration-200 ${open ? 'rotate-180' : ''}`}>
-          ▾
-        </span>
-      </button>
-
-      {open && (
-        <div className="space-y-0.5 mb-1">
-          {visibleItems.map(item => {
-            const active = pathname === item.href || pathname.startsWith(item.href + '/')
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center rounded-md px-3 py-1.5 text-sm transition-colors ${
-                  active
-                    ? 'bg-zinc-100 text-zinc-800'
-                    : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800'
-                }`}
-              >
-                {item.label}
-              </Link>
-            )
-          })}
-        </div>
-      )}
-    </div>
+    <Link
+      href={item.href}
+      className={`group flex items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[13px] transition-colors ${
+        active
+          ? 'bg-white/10 text-white'
+          : 'text-zinc-400 hover:bg-white/5 hover:text-zinc-200'
+      }`}
+    >
+      <Icon
+        size={14}
+        className={active ? 'text-white' : 'text-zinc-500 group-hover:text-zinc-300'}
+        strokeWidth={active ? 2 : 1.5}
+      />
+      {item.label}
+    </Link>
   )
 }
 
 export function SidebarNav({ userRole }: { userRole: string }) {
   return (
-    <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1">
-      {NAV_GROUPS.map(group => (
-        <NavGroup key={group.label} group={group} userRole={userRole} />
-      ))}
+    <nav className="flex-1 overflow-y-auto py-2 px-2">
+      {NAV_SECTIONS.map((section, i) => {
+        const visibleItems = section.items.filter(item => !item.roles || item.roles.includes(userRole))
+        if (visibleItems.length === 0) return null
+
+        return (
+          <div key={i} className={i > 0 ? 'mt-4' : ''}>
+            {section.label && (
+              <p className="mb-1 px-2.5 text-[10px] font-semibold uppercase tracking-widest text-zinc-600">
+                {section.label}
+              </p>
+            )}
+            <div className="space-y-0.5">
+              {visibleItems.map(item => (
+                <NavItem key={item.href} item={item} />
+              ))}
+            </div>
+          </div>
+        )
+      })}
     </nav>
   )
 }

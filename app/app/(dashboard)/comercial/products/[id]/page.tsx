@@ -22,12 +22,12 @@ export default async function EditProductPage({ params }: Props) {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <Link href="/comercial/products" className="text-xs text-zinc-500 hover:text-zinc-900 transition-colors">
+        <Link href="/comercial/products" className="text-xs text-zinc-500 hover:text-zinc-200 transition-colors">
           ← Produtos e Serviços
         </Link>
-        <h1 className="mt-3 text-xl font-semibold text-zinc-700">Editar item</h1>
+        <h1 className="mt-3 text-xl font-semibold text-zinc-100">Editar item</h1>
       </div>
-      <div className="max-w-2xl rounded-xl border border-zinc-200 bg-white p-6">
+      <div className="max-w-2xl rounded-xl border border-white/[0.08] bg-white/[0.03] p-6">
         <ProductForm action={boundAction} defaultValues={product as any} />
       </div>
     </div>

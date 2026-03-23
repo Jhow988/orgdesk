@@ -91,14 +91,14 @@ export default async function OrganizationDetailPage({ params, searchParams }: P
   return (
     <div className="p-6">
       <div className="mb-6">
-        <Link href="/organizations" className="text-xs text-zinc-500 hover:text-zinc-900 transition-colors">
+        <Link href="/organizations" className="text-xs text-zinc-500 hover:text-zinc-200 transition-colors">
           ← Organizações
         </Link>
         <div className="mt-3 flex items-center gap-3">
-          <h1 className="text-xl font-semibold text-zinc-700">{org.name}</h1>
+          <h1 className="text-xl font-semibold text-zinc-100">{org.name}</h1>
           <SubscriptionBadge status={org.subscription_status} />
           {!org.is_active && (
-            <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500">Inativa</span>
+            <span className="rounded-full bg-white/[0.08] px-2 py-0.5 text-xs text-zinc-400">Inativa</span>
           )}
         </div>
         <p className="mt-1 text-sm text-zinc-400">
@@ -107,7 +107,7 @@ export default async function OrganizationDetailPage({ params, searchParams }: P
         </p>
       </div>
 
-      <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
+      <div className="rounded-xl border border-white/[0.08] bg-white/[0.04] overflow-hidden">
         <Suspense fallback={null}>
           <TabNav orgId={org.id} />
         </Suspense>

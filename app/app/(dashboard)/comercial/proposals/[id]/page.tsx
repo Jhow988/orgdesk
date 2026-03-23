@@ -5,12 +5,12 @@ import Link from 'next/link'
 import { updateProposalStatusAction } from '@/app/actions/proposals'
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  DRAFT:    { label: 'Rascunho',    className: 'bg-zinc-100 text-zinc-600' },
+  DRAFT:    { label: 'Rascunho',    className: 'bg-white/[0.08] text-zinc-400' },
   SENT:     { label: 'Enviada',     className: 'bg-blue-900/50 text-blue-400' },
   VIEWED:   { label: 'Visualizada', className: 'bg-yellow-900/50 text-yellow-400' },
   ACCEPTED: { label: 'Aceita',      className: 'bg-emerald-900/50 text-emerald-400' },
   REJECTED: { label: 'Recusada',    className: 'bg-red-900/50 text-red-400' },
-  EXPIRED:  { label: 'Expirada',    className: 'bg-zinc-100 text-zinc-500' },
+  EXPIRED:  { label: 'Expirada',    className: 'bg-white/[0.08] text-zinc-500' },
 }
 
 interface Props { params: Promise<{ id: string }> }
@@ -34,11 +34,11 @@ export default async function ProposalDetailPage({ params }: Props) {
   return (
     <div className="p-6 max-w-4xl">
       <div className="mb-6">
-        <Link href="/comercial/proposals" className="text-xs text-zinc-500 hover:text-zinc-900 transition-colors">
+        <Link href="/comercial/proposals" className="text-xs text-zinc-500 hover:text-zinc-200 transition-colors">
           ← Propostas
         </Link>
         <div className="mt-3 flex items-center gap-3">
-          <h1 className="text-xl font-semibold text-zinc-700">{proposal.title}</h1>
+          <h1 className="text-xl font-semibold text-zinc-100">{proposal.title}</h1>
           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${cfg.className}`}>{cfg.label}</span>
         </div>
         <p className="mt-1 text-sm text-zinc-400">
@@ -47,7 +47,6 @@ export default async function ProposalDetailPage({ params }: Props) {
         </p>
       </div>
 
-      {/* Ações de status */}
       <div className="mb-6 flex flex-wrap gap-2">
         {proposal.status === 'DRAFT' && (
           <form action={async () => { 'use server'; await updateProposalStatusAction(id, 'SENT') }}>
@@ -72,17 +71,16 @@ export default async function ProposalDetailPage({ params }: Props) {
         )}
         {proposal.status === 'ACCEPTED' && (
           <Link href={`/comercial/contracts/new?proposal_id=${proposal.id}`}
-            className="rounded-md bg-white px-4 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-200 transition-colors">
+            className="rounded-md bg-white/[0.06] border border-white/[0.08] px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-white/10 transition-colors">
             Gerar contrato
           </Link>
         )}
       </div>
 
-      {/* Itens */}
-      <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden mb-4">
-        <table className="w-full text-sm">
+      <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] overflow-hidden mb-4">
+        <table className="w-full text-sm bg-transparent">
           <thead>
-            <tr className="border-b border-zinc-200 text-left text-xs text-zinc-400">
+            <tr className="border-b border-white/[0.08] text-left text-xs text-zinc-500">
               <th className="px-4 py-3 font-medium">Descrição</th>
               <th className="px-4 py-3 font-medium text-right">Qtd</th>
               <th className="px-4 py-3 font-medium text-right">Preço unit.</th>
@@ -91,16 +89,16 @@ export default async function ProposalDetailPage({ params }: Props) {
           </thead>
           <tbody>
             {proposal.items.map(item => (
-              <tr key={item.id} className="border-b border-zinc-200 last:border-0">
-                <td className="px-4 py-3 text-zinc-900">
+              <tr key={item.id} className="border-b border-white/[0.06] last:border-0">
+                <td className="px-4 py-3 text-zinc-200">
                   {item.description}
-                  <span className="ml-2 text-xs text-zinc-400">{item.unit}</span>
+                  <span className="ml-2 text-xs text-zinc-500">{item.unit}</span>
                 </td>
-                <td className="px-4 py-3 text-right font-mono text-zinc-500">{Number(item.quantity)}</td>
-                <td className="px-4 py-3 text-right font-mono text-zinc-500">
+                <td className="px-4 py-3 text-right font-mono text-zinc-400">{Number(item.quantity)}</td>
+                <td className="px-4 py-3 text-right font-mono text-zinc-400">
                   {Number(item.unit_price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </td>
-                <td className="px-4 py-3 text-right font-mono text-zinc-900">
+                <td className="px-4 py-3 text-right font-mono text-zinc-100">
                   {Number(item.total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </td>
               </tr>
@@ -113,7 +111,7 @@ export default async function ProposalDetailPage({ params }: Props) {
         <dl className="space-y-1 text-sm w-64">
           <div className="flex justify-between">
             <dt className="text-zinc-400">Subtotal</dt>
-            <dd className="font-mono text-zinc-500">
+            <dd className="font-mono text-zinc-400">
               {(Number(proposal.total) + Number(proposal.discount)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
             </dd>
           </div>
@@ -125,9 +123,9 @@ export default async function ProposalDetailPage({ params }: Props) {
               </dd>
             </div>
           )}
-          <div className="flex justify-between border-t border-zinc-200 pt-2">
-            <dt className="font-semibold text-zinc-500">Total</dt>
-            <dd className="font-mono font-bold text-zinc-900">
+          <div className="flex justify-between border-t border-white/[0.08] pt-2">
+            <dt className="font-semibold text-zinc-400">Total</dt>
+            <dd className="font-mono font-bold text-zinc-100">
               {Number(proposal.total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
             </dd>
           </div>
@@ -135,9 +133,9 @@ export default async function ProposalDetailPage({ params }: Props) {
       </div>
 
       {proposal.notes && (
-        <div className="mt-6 rounded-xl border border-zinc-200 bg-white p-4">
+        <div className="mt-6 rounded-xl border border-white/[0.08] bg-white/[0.04] p-4">
           <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Observações</p>
-          <p className="text-sm text-zinc-500 whitespace-pre-wrap">{proposal.notes}</p>
+          <p className="text-sm text-zinc-400 whitespace-pre-wrap">{proposal.notes}</p>
         </div>
       )}
     </div>

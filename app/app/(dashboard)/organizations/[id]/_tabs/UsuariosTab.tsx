@@ -20,36 +20,36 @@ export function UsuariosTab({ members }: { members: MemberWithUser[] }) {
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-zinc-200">
-      <table className="w-full text-sm">
-        <thead className="bg-zinc-100">
-          <tr>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400">Usuário</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400">Perfil</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400">Último acesso</th>
-            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-400">Status</th>
+    <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-white/[0.03]">
+      <table className="w-full text-sm bg-transparent">
+        <thead>
+          <tr className="border-b border-white/[0.08]">
+            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500">Usuário</th>
+            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500">Perfil</th>
+            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500">Último acesso</th>
+            <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500">Status</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-zinc-200">
+        <tbody className="divide-y divide-white/[0.06]">
           {members.map(m => (
-            <tr key={m.id} className="hover:bg-zinc-50 transition-colors">
+            <tr key={m.id} className="hover:bg-white/[0.03] transition-colors">
               <td className="px-4 py-3">
-                <div className="font-medium text-zinc-900">{m.user.name}</div>
-                <div className="text-xs text-zinc-400">{m.user.email}</div>
+                <div className="font-medium text-zinc-100">{m.user.name}</div>
+                <div className="text-xs text-zinc-500">{m.user.email}</div>
               </td>
-              <td className="px-4 py-3 text-zinc-500">
+              <td className="px-4 py-3 text-zinc-400">
                 {ROLE_LABELS[m.role] ?? m.role}
               </td>
-              <td className="px-4 py-3 text-zinc-500">
+              <td className="px-4 py-3 text-zinc-400">
                 {m.user.last_login_at
                   ? new Date(m.user.last_login_at).toLocaleString('pt-BR')
-                  : <span className="text-zinc-400">Nunca acessou</span>}
+                  : <span className="text-zinc-600">Nunca acessou</span>}
               </td>
               <td className="px-4 py-3">
                 <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
                   m.is_active
                     ? 'bg-emerald-900/50 text-emerald-400'
-                    : 'bg-zinc-100 text-zinc-500'
+                    : 'bg-white/[0.08] text-zinc-500'
                 }`}>
                   {m.is_active ? 'Ativo' : 'Inativo'}
                 </span>

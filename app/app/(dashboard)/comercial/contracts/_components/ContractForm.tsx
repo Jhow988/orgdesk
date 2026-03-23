@@ -25,37 +25,37 @@ export function ContractForm({ action, clients, defaultValues }: Props) {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5 sm:col-span-2">
-          <label className="text-xs font-medium text-zinc-500">Título *</label>
+          <label className="text-xs font-medium text-zinc-400">Título *</label>
           <input name="title" required defaultValue={defaultValues?.title}
-            className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-zinc-400 focus:outline-none" />
+            className="w-full rounded-md border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-sm text-zinc-100 focus:border-white/20 focus:outline-none" />
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-zinc-500">Cliente *</label>
+          <label className="text-xs font-medium text-zinc-400">Cliente *</label>
           <select name="client_id" required defaultValue={defaultValues?.client_id}
-            className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-zinc-400 focus:outline-none">
+            className="w-full rounded-md border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-sm text-zinc-100 focus:border-white/20 focus:outline-none">
             <option value="">Selecione um cliente</option>
             {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
 
         <div className="space-y-1.5">
-          <label className="text-xs font-medium text-zinc-500">Expira em</label>
+          <label className="text-xs font-medium text-zinc-400">Expira em</label>
           <input name="expires_at" type="date" defaultValue={defaultValues?.expires_at}
-            className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-zinc-400 focus:outline-none" />
+            className="w-full rounded-md border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-sm text-zinc-100 focus:border-white/20 focus:outline-none" />
         </div>
 
         <div className="space-y-1.5 sm:col-span-2">
-          <label className="text-xs font-medium text-zinc-500">Conteúdo do contrato</label>
+          <label className="text-xs font-medium text-zinc-400">Conteúdo do contrato</label>
           <textarea name="content" rows={12} defaultValue={defaultValues?.content}
             placeholder="Digite o texto do contrato aqui..."
-            className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 placeholder-zinc-400 focus:border-zinc-400 focus:outline-none resize-y font-mono" />
-          <p className="text-xs text-zinc-400">O cliente poderá visualizar e assinar digitalmente pelo portal.</p>
+            className="w-full rounded-md border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:border-white/20 focus:outline-none resize-y font-mono" />
+          <p className="text-xs text-zinc-500">O cliente poderá visualizar e assinar digitalmente pelo portal.</p>
         </div>
       </div>
 
       <button type="submit" disabled={isPending}
-        className="rounded-md bg-white px-5 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-200 disabled:opacity-50 transition-colors">
+        className="rounded-md bg-indigo-600 px-5 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50 transition-colors">
         {isPending ? 'Salvando...' : 'Salvar contrato'}
       </button>
     </form>

@@ -46,7 +46,7 @@ export default async function DashboardPage() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-zinc-700">
+        <h1 className="text-xl font-semibold text-zinc-100">
           {orgName ? `Dashboard — ${orgName}` : 'Dashboard'}
         </h1>
         <p className="mt-1 text-sm text-zinc-400">
@@ -77,9 +77,9 @@ export default async function DashboardPage() {
 
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-4">
+    <div className="rounded-xl border border-white/[0.08] bg-white/[0.04] p-4">
       <p className="text-sm text-zinc-400">{label}</p>
-      <p className="mt-1 text-2xl font-semibold text-zinc-900">{value.toLocaleString('pt-BR')}</p>
+      <p className="mt-1 text-2xl font-semibold text-zinc-100">{value.toLocaleString('pt-BR')}</p>
     </div>
   )
 }

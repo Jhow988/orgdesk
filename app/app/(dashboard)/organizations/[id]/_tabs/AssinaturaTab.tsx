@@ -30,7 +30,7 @@ export function AssinaturaTab({ org, action }: Props) {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <span className="text-sm text-zinc-500">Status atual:</span>
+        <span className="text-sm text-zinc-400">Status atual:</span>
         <SubscriptionBadge status={org.subscription_status} />
       </div>
 
@@ -48,53 +48,53 @@ export function AssinaturaTab({ org, action }: Props) {
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-zinc-500">Status da assinatura</label>
+            <label className="text-xs font-medium text-zinc-400">Status da assinatura</label>
             <select name="subscription_status" defaultValue={org.subscription_status}
-              className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-zinc-400 focus:outline-none">
+              className="w-full rounded-md border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-sm text-zinc-100 focus:border-white/20 focus:ring-0 focus:outline-none">
               {STATUSES.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
             </select>
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-zinc-500">Fim do trial</label>
+            <label className="text-xs font-medium text-zinc-400">Fim do trial</label>
             <input name="trial_ends_at" type="date" defaultValue={toDateInput(org.trial_ends_at)}
-              className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-zinc-400 focus:outline-none" />
+              className="w-full rounded-md border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-sm text-zinc-100 focus:border-white/20 focus:ring-0 focus:outline-none" />
           </div>
 
           <div className="space-y-1.5">
-            <label className="text-xs font-medium text-zinc-500">Vencimento da assinatura</label>
+            <label className="text-xs font-medium text-zinc-400">Vencimento da assinatura</label>
             <input name="subscription_ends_at" type="date" defaultValue={toDateInput(org.subscription_ends_at)}
-              className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 focus:border-zinc-400 focus:outline-none" />
+              className="w-full rounded-md border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-sm text-zinc-100 focus:border-white/20 focus:ring-0 focus:outline-none" />
           </div>
         </div>
 
         <button type="submit" disabled={isPending}
-          className="rounded-md bg-white px-5 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-200 disabled:opacity-50 transition-colors">
+          className="rounded-md bg-white/[0.06] border border-white/[0.08] px-5 py-2 text-sm font-medium text-zinc-200 hover:bg-white/10 disabled:opacity-50 transition-colors">
           {isPending ? 'Salvando...' : 'Atualizar assinatura'}
         </button>
       </form>
 
-      <div className="rounded-xl border border-zinc-200 bg-zinc-100/60 p-4">
+      <div className="rounded-xl border border-white/[0.08] bg-white/[0.04] p-4">
         <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-3">Resumo</p>
         <dl className="space-y-2 text-sm">
           <div className="flex justify-between">
             <dt className="text-zinc-400">Plano</dt>
-            <dd className="text-zinc-900 capitalize">{org.plan}</dd>
+            <dd className="text-zinc-100 capitalize">{org.plan}</dd>
           </div>
           <div className="flex justify-between">
             <dt className="text-zinc-400">Cliente desde</dt>
-            <dd className="text-zinc-900">{new Date(org.created_at).toLocaleDateString('pt-BR')}</dd>
+            <dd className="text-zinc-100">{new Date(org.created_at).toLocaleDateString('pt-BR')}</dd>
           </div>
           {org.trial_ends_at && (
             <div className="flex justify-between">
               <dt className="text-zinc-400">Trial até</dt>
-              <dd className="text-zinc-900">{new Date(org.trial_ends_at).toLocaleDateString('pt-BR')}</dd>
+              <dd className="text-zinc-100">{new Date(org.trial_ends_at).toLocaleDateString('pt-BR')}</dd>
             </div>
           )}
           {org.subscription_ends_at && (
             <div className="flex justify-between">
               <dt className="text-zinc-400">Assinatura vence</dt>
-              <dd className={`font-medium ${new Date(org.subscription_ends_at) < new Date() ? 'text-red-400' : 'text-zinc-900'}`}>
+              <dd className={`font-medium ${new Date(org.subscription_ends_at) < new Date() ? 'text-red-400' : 'text-zinc-100'}`}>
                 {new Date(org.subscription_ends_at).toLocaleDateString('pt-BR')}
               </dd>
             </div>
