@@ -3,7 +3,7 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   ACTIVE:    { label: 'Ativo',       className: 'bg-emerald-900/50 text-emerald-400' },
   OVERDUE:   { label: 'Inadimplente',className: 'bg-red-900/50 text-red-400' },
   SUSPENDED: { label: 'Suspenso',    className: 'bg-yellow-900/50 text-yellow-400' },
-  CANCELLED: { label: 'Cancelado',   className: 'bg-zinc-800 text-zinc-500' },
+  CANCELLED: { label: 'Cancelado',   className: 'bg-zinc-100 text-zinc-500' },
 }
 
 export function SubscriptionBadge({ status }: { status: string }) {

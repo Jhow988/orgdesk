@@ -25,10 +25,10 @@ export default async function NewProposalPage() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <Link href="/comercial/proposals" className="text-xs text-zinc-500 hover:text-white transition-colors">
+        <Link href="/comercial/proposals" className="text-xs text-zinc-500 hover:text-zinc-900 transition-colors">
           ← Propostas
         </Link>
-        <h1 className="mt-3 text-xl font-semibold text-white">Nova proposta</h1>
+        <h1 className="mt-3 text-xl font-semibold text-zinc-700">Nova proposta</h1>
       </div>
       <ProposalForm action={createProposalAction} clients={clients} products={products as any} />
     </div>

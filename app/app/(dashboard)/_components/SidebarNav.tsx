@@ -84,12 +84,12 @@ function NavGroup({ group, userRole }: { group: NavGroup; userRole: string }) {
     <div>
       <button
         onClick={() => setOpen(o => !o)}
-        className="flex w-full items-center justify-between px-3 py-1 mb-0.5 rounded-md hover:bg-zinc-800/60 transition-colors group"
+        className="flex w-full items-center justify-between px-3 py-1 mb-0.5 rounded-md hover:bg-zinc-100 transition-colors group"
       >
-        <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-600 group-hover:text-zinc-500 transition-colors">
+        <span className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500 group-hover:text-zinc-400 transition-colors">
           {group.label}
         </span>
-        <span className={`text-zinc-700 text-xs transition-transform duration-200 ${open ? 'rotate-180' : ''}`}>
+        <span className={`text-zinc-400 text-xs transition-transform duration-200 ${open ? 'rotate-180' : ''}`}>
           ▾
         </span>
       </button>
@@ -104,8 +104,8 @@ function NavGroup({ group, userRole }: { group: NavGroup; userRole: string }) {
                 href={item.href}
                 className={`flex items-center rounded-md px-3 py-1.5 text-sm transition-colors ${
                   active
-                    ? 'bg-zinc-800 text-white'
-                    : 'text-zinc-400 hover:bg-zinc-800 hover:text-white'
+                    ? 'bg-zinc-100 text-zinc-800'
+                    : 'text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800'
                 }`}
               >
                 {item.label}

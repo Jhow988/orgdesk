@@ -9,10 +9,10 @@ interface Stats {
 
 function StatCard({ label, value, sub }: { label: string; value: number | string; sub?: string }) {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
-      <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">{label}</p>
-      <p className="mt-2 text-3xl font-bold text-white">{value}</p>
-      {sub && <p className="mt-1 text-xs text-zinc-500">{sub}</p>}
+    <div className="rounded-xl border border-zinc-200 bg-zinc-100/60 p-4">
+      <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">{label}</p>
+      <p className="mt-2 text-3xl font-bold text-zinc-900">{value}</p>
+      {sub && <p className="mt-1 text-xs text-zinc-400">{sub}</p>}
     </div>
   )
 }
@@ -37,29 +37,29 @@ export function UsoTab({ stats }: { stats: Stats }) {
 
       <div className="grid gap-4 sm:grid-cols-2">
         <StatCard label="Campanhas" value={stats.campaigns} />
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600">Última atividade</p>
-          <p className="mt-2 text-sm font-medium text-white">
+        <div className="rounded-xl border border-zinc-200 bg-zinc-100/60 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Última atividade</p>
+          <p className="mt-2 text-sm font-medium text-zinc-900">
             {stats.lastActivity
               ? new Date(stats.lastActivity).toLocaleString('pt-BR')
-              : <span className="text-zinc-500">Nenhuma atividade registrada</span>}
+              : <span className="text-zinc-400">Nenhuma atividade registrada</span>}
           </p>
         </div>
       </div>
 
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
-        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600 mb-3">Boletos por status</p>
+      <div className="rounded-xl border border-zinc-200 bg-zinc-100/60 p-4">
+        <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-3">Boletos por status</p>
         <div className="flex gap-6 text-sm">
           <div>
-            <span className="text-zinc-500">Pendentes </span>
-            <span className="font-medium text-white">{stats.boletos.pending}</span>
+            <span className="text-zinc-400">Pendentes </span>
+            <span className="font-medium text-zinc-900">{stats.boletos.pending}</span>
           </div>
           <div>
-            <span className="text-zinc-500">Pagos </span>
+            <span className="text-zinc-400">Pagos </span>
             <span className="font-medium text-emerald-400">{stats.boletos.paid}</span>
           </div>
           <div>
-            <span className="text-zinc-500">Vencidos </span>
+            <span className="text-zinc-400">Vencidos </span>
             <span className="font-medium text-red-400">{stats.boletos.overdue}</span>
           </div>
         </div>

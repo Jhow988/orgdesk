@@ -46,10 +46,10 @@ export default async function DashboardPage() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-xl font-semibold text-white">
+        <h1 className="text-xl font-semibold text-zinc-700">
           {orgName ? `Dashboard — ${orgName}` : 'Dashboard'}
         </h1>
-        <p className="mt-1 text-sm text-zinc-500">
+        <p className="mt-1 text-sm text-zinc-400">
           Bem-vindo de volta, {session?.user?.name}
         </p>
       </div>
@@ -69,7 +69,7 @@ export default async function DashboardPage() {
           <StatCard label="Chamados total" value={stats.ticketsCount ?? 0} />
         </div>
       ) : (
-        <p className="text-sm text-zinc-500">Nenhuma organização associada à sua conta.</p>
+        <p className="text-sm text-zinc-400">Nenhuma organização associada à sua conta.</p>
       )}
     </div>
   )
@@ -77,9 +77,9 @@ export default async function DashboardPage() {
 
 function StatCard({ label, value }: { label: string; value: number }) {
   return (
-    <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-4">
-      <p className="text-sm text-zinc-500">{label}</p>
-      <p className="mt-1 text-2xl font-semibold text-white">{value.toLocaleString('pt-BR')}</p>
+    <div className="rounded-xl border border-zinc-200 bg-white p-4">
+      <p className="text-sm text-zinc-400">{label}</p>
+      <p className="mt-1 text-2xl font-semibold text-zinc-900">{value.toLocaleString('pt-BR')}</p>
     </div>
   )
 }

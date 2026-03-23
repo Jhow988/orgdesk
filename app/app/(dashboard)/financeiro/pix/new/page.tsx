@@ -18,12 +18,12 @@ export default async function NewPixPage() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <Link href="/financeiro/pix" className="text-xs text-zinc-500 hover:text-white transition-colors">
+        <Link href="/financeiro/pix" className="text-xs text-zinc-500 hover:text-zinc-900 transition-colors">
           ← Cobranças PIX
         </Link>
-        <h1 className="mt-3 text-xl font-semibold text-white">Nova cobrança PIX</h1>
+        <h1 className="mt-3 text-xl font-semibold text-zinc-700">Nova cobrança PIX</h1>
       </div>
-      <div className="max-w-lg rounded-xl border border-zinc-800 bg-zinc-900 p-6">
+      <div className="max-w-lg rounded-xl border border-zinc-200 bg-white p-6">
         <PixForm action={createPixChargeAction} clients={clients} />
       </div>
     </div>

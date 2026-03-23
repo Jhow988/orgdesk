@@ -5,11 +5,11 @@ import Link from 'next/link'
 import { sendContractAction, cancelContractAction } from '@/app/actions/contracts'
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  DRAFT:     { label: 'Rascunho',    className: 'bg-zinc-800 text-zinc-400' },
+  DRAFT:     { label: 'Rascunho',    className: 'bg-zinc-100 text-zinc-600' },
   SENT:      { label: 'Enviado',     className: 'bg-blue-900/50 text-blue-400' },
   VIEWED:    { label: 'Visualizado', className: 'bg-yellow-900/50 text-yellow-400' },
   SIGNED:    { label: 'Assinado',    className: 'bg-emerald-900/50 text-emerald-400' },
-  EXPIRED:   { label: 'Expirado',    className: 'bg-zinc-800 text-zinc-500' },
+  EXPIRED:   { label: 'Expirado',    className: 'bg-zinc-100 text-zinc-500' },
   CANCELLED: { label: 'Cancelado',   className: 'bg-red-900/50 text-red-400' },
 }
 
@@ -37,14 +37,14 @@ export default async function ContractDetailPage({ params }: Props) {
   return (
     <div className="p-6 max-w-4xl">
       <div className="mb-6">
-        <Link href="/comercial/contracts" className="text-xs text-zinc-500 hover:text-white transition-colors">
+        <Link href="/comercial/contracts" className="text-xs text-zinc-500 hover:text-zinc-900 transition-colors">
           ← Contratos
         </Link>
         <div className="mt-3 flex items-center gap-3">
-          <h1 className="text-xl font-semibold text-white">{contract.title}</h1>
+          <h1 className="text-xl font-semibold text-zinc-700">{contract.title}</h1>
           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${cfg.className}`}>{cfg.label}</span>
         </div>
-        <p className="mt-1 text-sm text-zinc-500">
+        <p className="mt-1 text-sm text-zinc-400">
           {contract.client.name}
           {contract.proposal && <> · Proposta #{String(contract.proposal.number).padStart(4,'0')}</>}
           {contract.expires_at && <> · Expira em {new Date(contract.expires_at).toLocaleDateString('pt-BR')}</>}
@@ -71,9 +71,9 @@ export default async function ContractDetailPage({ params }: Props) {
 
       {/* Link de assinatura */}
       {portalLink && contract.status !== 'SIGNED' && contract.status !== 'CANCELLED' && (
-        <div className="mb-6 rounded-xl border border-zinc-700 bg-zinc-900 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600 mb-2">Link de assinatura</p>
-          <p className="break-all font-mono text-xs text-zinc-400">{portalLink}</p>
+        <div className="mb-6 rounded-xl border border-zinc-300 bg-white p-4">
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Link de assinatura</p>
+          <p className="break-all font-mono text-xs text-zinc-500">{portalLink}</p>
         </div>
       )}
 
@@ -85,10 +85,10 @@ export default async function ContractDetailPage({ params }: Props) {
           { label: 'Visualizado', value: contract.viewed_at },
           { label: 'Assinado', value: contract.signed_at },
         ].map(({ label, value }) => (
-          <div key={label} className="rounded-lg border border-zinc-800 bg-zinc-900 p-3">
-            <p className="text-xs text-zinc-600">{label}</p>
-            <p className="mt-1 text-sm text-white">
-              {value ? new Date(value).toLocaleDateString('pt-BR') : <span className="text-zinc-600">—</span>}
+          <div key={label} className="rounded-lg border border-zinc-200 bg-white p-3">
+            <p className="text-xs text-zinc-400">{label}</p>
+            <p className="mt-1 text-sm text-zinc-900">
+              {value ? new Date(value).toLocaleDateString('pt-BR') : <span className="text-zinc-400">—</span>}
             </p>
           </div>
         ))}
@@ -96,9 +96,9 @@ export default async function ContractDetailPage({ params }: Props) {
 
       {/* Conteúdo */}
       {contract.content && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-6">
-          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-600 mb-4">Conteúdo</p>
-          <pre className="whitespace-pre-wrap font-sans text-sm text-zinc-300 leading-relaxed">{contract.content}</pre>
+        <div className="rounded-xl border border-zinc-200 bg-white p-6">
+          <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-4">Conteúdo</p>
+          <pre className="whitespace-pre-wrap font-sans text-sm text-zinc-500 leading-relaxed">{contract.content}</pre>
         </div>
       )}
     </div>

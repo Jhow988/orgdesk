@@ -11,12 +11,12 @@ export default async function NewProductPage() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <Link href="/comercial/products" className="text-xs text-zinc-500 hover:text-white transition-colors">
+        <Link href="/comercial/products" className="text-xs text-zinc-500 hover:text-zinc-900 transition-colors">
           ← Produtos e Serviços
         </Link>
-        <h1 className="mt-3 text-xl font-semibold text-white">Novo item</h1>
+        <h1 className="mt-3 text-xl font-semibold text-zinc-700">Novo item</h1>
       </div>
-      <div className="max-w-2xl rounded-xl border border-zinc-800 bg-zinc-900 p-6">
+      <div className="max-w-2xl rounded-xl border border-zinc-200 bg-white p-6">
         <ProductForm action={createProductAction} />
       </div>
     </div>

@@ -4,12 +4,12 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  DRAFT:    { label: 'Rascunho',  className: 'bg-zinc-800 text-zinc-400' },
+  DRAFT:    { label: 'Rascunho',  className: 'bg-zinc-100 text-zinc-600' },
   SENT:     { label: 'Enviada',   className: 'bg-blue-900/50 text-blue-400' },
   VIEWED:   { label: 'Visualizada', className: 'bg-yellow-900/50 text-yellow-400' },
   ACCEPTED: { label: 'Aceita',    className: 'bg-emerald-900/50 text-emerald-400' },
   REJECTED: { label: 'Recusada', className: 'bg-red-900/50 text-red-400' },
-  EXPIRED:  { label: 'Expirada', className: 'bg-zinc-800 text-zinc-500' },
+  EXPIRED:  { label: 'Expirada', className: 'bg-zinc-100 text-zinc-500' },
 }
 
 export default async function ProposalsPage() {
@@ -26,8 +26,8 @@ export default async function ProposalsPage() {
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-white">Propostas</h1>
-          <p className="mt-1 text-sm text-zinc-500">{proposals.length} proposta{proposals.length !== 1 ? 's' : ''}</p>
+          <h1 className="text-xl font-semibold text-zinc-700">Propostas</h1>
+          <p className="mt-1 text-sm text-zinc-400">{proposals.length} proposta{proposals.length !== 1 ? 's' : ''}</p>
         </div>
         <Link href="/comercial/proposals/new"
           className="rounded-md bg-white px-4 py-2 text-sm font-medium text-zinc-900 hover:bg-zinc-200 transition-colors">
@@ -35,10 +35,10 @@ export default async function ProposalsPage() {
         </Link>
       </div>
 
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
+      <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-zinc-800 text-left text-xs text-zinc-500">
+            <tr className="border-b border-zinc-200 text-left text-xs text-zinc-400">
               <th className="px-4 py-3 font-medium">Nº</th>
               <th className="px-4 py-3 font-medium">Título</th>
               <th className="px-4 py-3 font-medium">Cliente</th>
@@ -50,26 +50,26 @@ export default async function ProposalsPage() {
           </thead>
           <tbody>
             {proposals.length === 0 ? (
-              <tr><td colSpan={7} className="px-4 py-10 text-center text-zinc-500">Nenhuma proposta criada.</td></tr>
+              <tr><td colSpan={7} className="px-4 py-10 text-center text-zinc-400">Nenhuma proposta criada.</td></tr>
             ) : proposals.map(p => {
               const cfg = STATUS_CONFIG[p.status] ?? STATUS_CONFIG.DRAFT
               const expired = p.valid_until && new Date(p.valid_until) < new Date() && p.status === 'SENT'
               return (
-                <tr key={p.id} className="border-b border-zinc-800 last:border-0 hover:bg-zinc-800/40 transition-colors">
-                  <td className="px-4 py-3 font-mono text-zinc-400 text-xs">#{String(p.number).padStart(4, '0')}</td>
-                  <td className="px-4 py-3 font-medium text-white">{p.title}</td>
-                  <td className="px-4 py-3 text-zinc-400">{p.client.name}</td>
+                <tr key={p.id} className="border-b border-zinc-200 last:border-0 hover:bg-zinc-50 transition-colors">
+                  <td className="px-4 py-3 font-mono text-zinc-500 text-xs">#{String(p.number).padStart(4, '0')}</td>
+                  <td className="px-4 py-3 font-medium text-zinc-900">{p.title}</td>
+                  <td className="px-4 py-3 text-zinc-500">{p.client.name}</td>
                   <td className="px-4 py-3">
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${cfg.className}`}>{cfg.label}</span>
                   </td>
-                  <td className="px-4 py-3 font-mono text-zinc-300">
+                  <td className="px-4 py-3 font-mono text-zinc-500">
                     {Number(p.total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                   </td>
-                  <td className={`px-4 py-3 text-xs ${expired ? 'text-red-400' : 'text-zinc-500'}`}>
+                  <td className={`px-4 py-3 text-xs ${expired ? 'text-red-400' : 'text-zinc-400'}`}>
                     {p.valid_until ? new Date(p.valid_until).toLocaleDateString('pt-BR') : '—'}
                   </td>
                   <td className="px-4 py-3">
-                    <Link href={`/comercial/proposals/${p.id}`} className="text-xs text-zinc-400 hover:text-white transition-colors">
+                    <Link href={`/comercial/proposals/${p.id}`} className="text-xs text-zinc-500 hover:text-zinc-700 transition-colors">
                       Ver
                     </Link>
                   </td>

@@ -20,8 +20,8 @@ export default async function OrganizationsPage() {
     <div className="p-6">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-white">Organizações</h1>
-          <p className="mt-1 text-sm text-zinc-500">
+          <h1 className="text-xl font-semibold text-zinc-700">Organizações</h1>
+          <p className="mt-1 text-sm text-zinc-400">
             {orgs.length} organização{orgs.length !== 1 ? 's' : ''} cadastrada{orgs.length !== 1 ? 's' : ''}
           </p>
         </div>
@@ -33,10 +33,10 @@ export default async function OrganizationsPage() {
         </Link>
       </div>
 
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900 overflow-hidden">
+      <div className="rounded-xl border border-zinc-200 bg-white overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-zinc-800 text-left text-xs text-zinc-500">
+            <tr className="border-b border-zinc-200 text-left text-xs text-zinc-400">
               <th className="px-4 py-3 font-medium">Nome</th>
               <th className="px-4 py-3 font-medium">CNPJ</th>
               <th className="px-4 py-3 font-medium">Plano</th>
@@ -50,34 +50,34 @@ export default async function OrganizationsPage() {
           <tbody>
             {orgs.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-10 text-center text-zinc-500">
+                <td colSpan={8} className="px-4 py-10 text-center text-zinc-400">
                   Nenhuma organização cadastrada.
                 </td>
               </tr>
             ) : (
               orgs.map((org) => (
-                <tr key={org.id} className="border-b border-zinc-800 last:border-0 hover:bg-zinc-800/40 transition-colors">
+                <tr key={org.id} className="border-b border-zinc-200 last:border-0 hover:bg-zinc-50 transition-colors">
                   <td className="px-4 py-3">
-                    <div className="font-medium text-white">{org.name}</div>
-                    <div className="font-mono text-xs text-zinc-600">{org.slug}</div>
+                    <div className="font-medium text-zinc-900">{org.name}</div>
+                    <div className="font-mono text-xs text-zinc-400">{org.slug}</div>
                   </td>
-                  <td className="px-4 py-3 text-zinc-400 text-xs">{org.cnpj || '—'}</td>
+                  <td className="px-4 py-3 text-zinc-500 text-xs">{org.cnpj || '—'}</td>
                   <td className="px-4 py-3">
-                    <span className="rounded bg-zinc-800 px-2 py-0.5 text-xs text-zinc-300 capitalize">{org.plan}</span>
+                    <span className="rounded bg-zinc-100 px-2 py-0.5 text-xs text-zinc-500 capitalize">{org.plan}</span>
                   </td>
                   <td className="px-4 py-3">
                     <SubscriptionBadge status={org.subscription_status} />
                   </td>
-                  <td className="px-4 py-3 text-zinc-400">{org._count.memberships}</td>
-                  <td className="px-4 py-3 text-zinc-400">{org._count.clients}</td>
-                  <td className="px-4 py-3 text-zinc-500 text-xs">
+                  <td className="px-4 py-3 text-zinc-500">{org._count.memberships}</td>
+                  <td className="px-4 py-3 text-zinc-500">{org._count.clients}</td>
+                  <td className="px-4 py-3 text-zinc-400 text-xs">
                     {new Date(org.created_at).toLocaleDateString('pt-BR')}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-3">
                       <Link
                         href={`/organizations/${org.id}`}
-                        className="text-xs text-zinc-400 hover:text-white transition-colors"
+                        className="text-xs text-zinc-500 hover:text-zinc-700 transition-colors"
                       >
                         Gerenciar
                       </Link>

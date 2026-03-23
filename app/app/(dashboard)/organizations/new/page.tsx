@@ -11,14 +11,14 @@ export default async function NewOrganizationPage() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <Link href="/organizations" className="text-xs text-zinc-500 hover:text-white transition-colors">
+        <Link href="/organizations" className="text-xs text-zinc-500 hover:text-zinc-900 transition-colors">
           ← Organizações
         </Link>
-        <h1 className="mt-3 text-xl font-semibold text-white">Nova Organização</h1>
-        <p className="mt-1 text-sm text-zinc-500">Preencha os dados para criar uma nova organização.</p>
+        <h1 className="mt-3 text-xl font-semibold text-zinc-700">Nova Organização</h1>
+        <p className="mt-1 text-sm text-zinc-400">Preencha os dados para criar uma nova organização.</p>
       </div>
 
-      <div className="max-w-2xl rounded-xl border border-zinc-800 bg-zinc-900 p-6">
+      <div className="max-w-2xl rounded-xl border border-zinc-200 bg-white p-6">
         <OrgForm action={createOrganizationAction} />
       </div>
     </div>
