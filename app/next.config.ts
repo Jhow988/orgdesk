@@ -9,6 +9,11 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   serverExternalPackages: ['@prisma/client', 'bcryptjs', 'pdf-parse'],
+  experimental: {
+    serverActions: {
+      bodySizeLimit: '20mb',
+    },
+  },
 }
 
 export default nextConfig
