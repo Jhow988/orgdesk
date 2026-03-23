@@ -7,10 +7,6 @@ import { extrairCnpjDaPagina, extrairCnpjBoleto } from '@/lib/pdf-extractor'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
-// pdf-parse v2 exports differently
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdfParse = require('pdf-parse')
-
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 function monthYearToLabel(iso: string): string {
@@ -20,6 +16,9 @@ function monthYearToLabel(iso: string): string {
 }
 
 async function parsePdfPages(buffer: Buffer): Promise<string[]> {
+  // Lazy require so pdf-parse is not evaluated at build/module-load time
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const pdfParse = require('pdf-parse')
   const pages: string[] = []
   await pdfParse(buffer, {
     pagerender(pageData: any) {
