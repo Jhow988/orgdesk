@@ -32,14 +32,11 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Financeiro',
     items: [
-      { href: '/boletos',                  label: 'Boletos',       icon: FileText },
-      { href: '/financeiro/pix',           label: 'PIX',           icon: Zap },
-      { href: '/invoices',                 label: 'NFs do PDF',    icon: Receipt },
-      { href: '/campaigns',               label: 'Campanhas',     icon: Megaphone },
-      { href: '/clients',                 label: 'Clientes',      icon: Users },
-      { href: '/financeiro/rastreamento', label: 'Rastreamento',  icon: MapPin },
-      { href: '/financeiro/log-envios',   label: 'Log de Envios', icon: Send },
-      { href: '/financeiro/relatorios',   label: 'Relatórios',    icon: BarChart2 },
+      { href: '/campaigns',               label: 'Campanhas',          icon: Megaphone },
+      { href: '/invoices',                label: 'Contas a Receber',   icon: Receipt },
+      { href: '/financeiro/rastreamento', label: 'Rastreamento',       icon: MapPin },
+      { href: '/financeiro/log-envios',   label: 'Log de Envios',      icon: Send },
+      { href: '/financeiro/relatorios',   label: 'Relatórios',         icon: BarChart2 },
     ],
   },
   {
@@ -52,6 +49,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Cadastro',
     items: [
+      { href: '/clients',            label: 'Clientes',          icon: Users },
       { href: '/comercial/products', label: 'Produtos/Serviços', icon: Package },
       { href: '/users',              label: 'Usuários',          icon: UserCog },
     ],
