@@ -4,14 +4,18 @@ import { logoutAction } from '@/app/actions/auth'
 import Link from 'next/link'
 
 const NAV_ITEMS = [
-  { href: '/dashboard', label: 'Visão Geral', icon: '◈', roles: null },
-  { href: '/organizations', label: 'Organizações', icon: '◫', roles: ['SUPER_ADMIN'] },
-  { href: '/clients', label: 'Clientes', icon: '◉', roles: null },
-  { href: '/boletos', label: 'Boletos', icon: '◎', roles: null },
-  { href: '/invoices', label: 'Notas Fiscais', icon: '◇', roles: null },
-  { href: '/campaigns', label: 'Campanhas', icon: '◆', roles: null },
-  { href: '/tickets', label: 'Chamados', icon: '◐', roles: null },
-  { href: '/settings', label: 'Configurações', icon: '◈', roles: null },
+  { href: '/dashboard',             label: 'Visão Geral',      icon: '◈', roles: null },
+  { href: '/organizations',         label: 'Organizações',     icon: '◫', roles: ['SUPER_ADMIN'] },
+  { href: '/clients',               label: 'Clientes',         icon: '◉', roles: null },
+  { href: '/tickets',               label: 'Chamados',         icon: '◐', roles: null },
+  { href: '/comercial/proposals',   label: 'Propostas',        icon: '◧', roles: null },
+  { href: '/comercial/contracts',   label: 'Contratos',        icon: '◨', roles: null },
+  { href: '/comercial/products',    label: 'Produtos/Serviços',icon: '◰', roles: null },
+  { href: '/boletos',               label: 'Boletos',          icon: '◎', roles: null },
+  { href: '/financeiro/pix',        label: 'PIX',              icon: '◳', roles: null },
+  { href: '/invoices',              label: 'Notas Fiscais',    icon: '◇', roles: null },
+  { href: '/campaigns',             label: 'Campanhas',        icon: '◆', roles: null },
+  { href: '/settings',              label: 'Configurações',    icon: '◈', roles: null },
 ]
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {

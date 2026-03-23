@@ -20,9 +20,21 @@ export default auth(async function proxy(req: NextRequest & { auth: unknown }) {
     return NextResponse.next()
   }
 
-  const session = (req as { auth?: { user?: { id: string } } }).auth
+  const session = (req as { auth?: { user?: { role?: string } } }).auth
   if (!session?.user) {
     return NextResponse.redirect(new URL('/login', req.url))
+  }
+
+  const role = session.user.role
+
+  // CLIENT_PORTAL só acessa /portal
+  if (role === 'CLIENT_PORTAL' && !pathname.startsWith('/portal')) {
+    return NextResponse.redirect(new URL('/portal', req.url))
+  }
+
+  // Outros usuários não acessam /portal
+  if (role !== 'CLIENT_PORTAL' && pathname.startsWith('/portal')) {
+    return NextResponse.redirect(new URL('/dashboard', req.url))
   }
 
   return NextResponse.next()
