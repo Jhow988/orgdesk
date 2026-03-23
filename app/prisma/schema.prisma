@@ -64,6 +64,14 @@ enum SendStatus {
   SIMULATED
 }
 
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  OVERDUE
+  SUSPENDED
+  CANCELLED
+}
+
 enum NotificationType {
   TICKET_NEW
   TICKET_REPLY
@@ -83,8 +91,13 @@ model Organization {
   name        String
   cnpj        String?
   logo_url    String?
-  plan        String   @default("free")
-  is_active   Boolean  @default(true)
+  plan                 String             @default("free")
+  is_active            Boolean            @default(true)
+  subscription_status  SubscriptionStatus @default(TRIAL)
+  trial_ends_at        DateTime?
+  subscription_ends_at DateTime?
+  billing_email        String?
+  notes                String?
 
   smtp_host     String?
   smtp_port     Int?    @default(465)
