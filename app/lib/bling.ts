@@ -1,0 +1,206 @@
+import { adminPrisma } from '@/lib/prisma'
+import { encrypt, decrypt } from '@/lib/crypto'
+
+const BLING_AUTH_URL  = 'https://www.bling.com.br/Api/v3/oauth/authorize'
+const BLING_TOKEN_URL = 'https://bling.com.br/Api/v3/oauth/token'
+const BLING_API       = 'https://bling.com.br/Api/v3'
+
+function clientId()     { return process.env.BLING_CLIENT_ID! }
+function clientSecret() { return process.env.BLING_CLIENT_SECRET! }
+function appUrl()       { return (process.env.NEXTAUTH_URL ?? '').replace(/\/$/, '') }
+function basicAuth()    { return Buffer.from(`${clientId()}:${clientSecret()}`).toString('base64') }
+
+// ─── OAuth ───────────────────────────────────────────────────────────────────
+
+export function getBlingAuthUrl(orgId: string): string {
+  const state  = Buffer.from(orgId).toString('base64url')
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id:     clientId(),
+    state,
+  })
+  return `${BLING_AUTH_URL}?${params}`
+}
+
+interface BlingTokens {
+  access_token:  string
+  refresh_token: string
+  expires_in:    number
+}
+
+export async function exchangeCode(code: string): Promise<BlingTokens> {
+  const res = await fetch(BLING_TOKEN_URL, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${basicAuth()}`,
+      'Content-Type':  'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      grant_type:   'authorization_code',
+      code,
+      redirect_uri: `${appUrl()}/api/bling/callback`,
+    }),
+  })
+  if (!res.ok) throw new Error(`Bling token exchange: ${res.status} ${await res.text()}`)
+  return res.json() as Promise<BlingTokens>
+}
+
+async function doRefresh(refreshToken: string): Promise<BlingTokens> {
+  const res = await fetch(BLING_TOKEN_URL, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${basicAuth()}`,
+      'Content-Type':  'application/x-www-form-urlencoded',
+    },
+    body: new URLSearchParams({
+      grant_type:    'refresh_token',
+      refresh_token: refreshToken,
+    }),
+  })
+  if (!res.ok) throw new Error(`Bling token refresh: ${res.status} ${await res.text()}`)
+  return res.json() as Promise<BlingTokens>
+}
+
+export async function saveTokens(orgId: string, tokens: BlingTokens) {
+  const expires_at = new Date(Date.now() + tokens.expires_in * 1000)
+  await adminPrisma.blingIntegration.upsert({
+    where:  { organization_id: orgId },
+    create: {
+      organization_id:   orgId,
+      access_token_enc:  encrypt(tokens.access_token),
+      refresh_token_enc: encrypt(tokens.refresh_token),
+      expires_at,
+    },
+    update: {
+      access_token_enc:  encrypt(tokens.access_token),
+      refresh_token_enc: encrypt(tokens.refresh_token),
+      expires_at,
+    },
+  })
+}
+
+export async function getAccessToken(orgId: string): Promise<string> {
+  const row = await adminPrisma.blingIntegration.findUnique({
+    where: { organization_id: orgId },
+  })
+  if (!row) throw new Error('Bling não conectado para esta organização.')
+
+  // Refresh if expiring within 5 minutes
+  if (row.expires_at.getTime() - Date.now() < 5 * 60 * 1000) {
+    const refreshToken = decrypt(row.refresh_token_enc)
+    const tokens       = await doRefresh(refreshToken)
+    await saveTokens(orgId, tokens)
+    return tokens.access_token
+  }
+
+  return decrypt(row.access_token_enc)
+}
+
+// ─── Contacts sync ───────────────────────────────────────────────────────────
+
+interface BlingContato {
+  id:               number
+  nome:             string
+  fantasia?:        string
+  numeroDocumento?: string
+  email?:           string
+  telefone?:        string
+  situacao?:        string
+  emails?:          Array<{ email: string; tipo?: { id: number; descricao: string } }>
+  endereco?: {
+    geral?: string
+    municipio?: string
+    uf?: string
+    cep?: string
+  }
+}
+
+function extractEmails(c: BlingContato): { email: string | null; email_nfe: string | null } {
+  if (!c.emails?.length) return { email: c.email ?? null, email_nfe: null }
+
+  const nfeEntry     = c.emails.find(e => e.tipo?.descricao?.toLowerCase().includes('nf'))
+  const primaryEntry = c.emails.find(e => !e.tipo?.descricao?.toLowerCase().includes('nf')) ?? c.emails[0]
+
+  return {
+    email:     primaryEntry?.email ?? c.email ?? null,
+    email_nfe: nfeEntry?.email ?? null,
+  }
+}
+
+function buildAddress(e?: BlingContato['endereco']): string | null {
+  if (!e) return null
+  return [e.geral, e.municipio, e.uf, e.cep].filter(Boolean).join(', ') || null
+}
+
+export interface SyncResult {
+  upserted: number
+  skipped:  number
+  errors:   number
+}
+
+export async function syncContatos(orgId: string): Promise<SyncResult> {
+  const accessToken = await getAccessToken(orgId)
+  const result: SyncResult = { upserted: 0, skipped: 0, errors: 0 }
+  let page = 1
+
+  while (true) {
+    const res = await fetch(
+      `${BLING_API}/contatos?pagina=${page}&limite=100&situacao=A`,
+      { headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' } }
+    )
+    if (!res.ok) throw new Error(`Bling contatos: ${res.status} ${await res.text()}`)
+
+    const body = (await res.json()) as { data?: BlingContato[] }
+    const contacts = body.data ?? []
+    if (!contacts.length) break
+
+    for (const c of contacts) {
+      const cnpj = c.numeroDocumento?.replace(/\D/g, '') ?? ''
+      if (cnpj.length !== 14) { result.skipped++; continue }
+
+      const { email, email_nfe } = extractEmails(c)
+      const address = buildAddress(c.endereco)
+
+      try {
+        await adminPrisma.client.upsert({
+          where:  { organization_id_cnpj: { organization_id: orgId, cnpj } },
+          create: {
+            organization_id: orgId,
+            cnpj,
+            name:       c.nome,
+            trade_name: c.fantasia ?? null,
+            email,
+            email_nfe,
+            phone:      c.telefone ?? null,
+            address,
+            is_active:  c.situacao !== 'I',
+            bling_id:   String(c.id),
+          },
+          update: {
+            name:       c.nome,
+            trade_name: c.fantasia ?? null,
+            email,
+            email_nfe,
+            phone:      c.telefone ?? null,
+            address,
+            is_active:  c.situacao !== 'I',
+            bling_id:   String(c.id),
+          },
+        })
+        result.upserted++
+      } catch {
+        result.errors++
+      }
+    }
+
+    if (contacts.length < 100) break
+    page++
+  }
+
+  await adminPrisma.blingIntegration.update({
+    where: { organization_id: orgId },
+    data:  { last_sync_at: new Date() },
+  })
+
+  return result
+}

@@ -165,9 +165,25 @@ model Organization {
   products       Product[]
   proposals      Proposal[]
   contracts      Contract[]
-  pix_charges    PixCharge[]
+  pix_charges       PixCharge[]
+  bling_integration BlingIntegration?
 
   @@map("organizations")
+}
+
+model BlingIntegration {
+  id                String    @id @default(cuid())
+  organization_id   String    @unique
+  access_token_enc  String
+  refresh_token_enc String
+  expires_at        DateTime
+  last_sync_at      DateTime?
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organization_id], references: [id])
+
+  @@map("bling_integrations")
 }
 
 model User {
@@ -225,6 +241,7 @@ model Client {
   address         String?
   notes           String?
   is_active       Boolean  @default(true)
+  bling_id        String?
   created_at      DateTime @default(now())
   updated_at      DateTime @updatedAt
 
