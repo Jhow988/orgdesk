@@ -350,6 +350,8 @@ model CampaignSend {
   client_name  String
   emails       String[]
   status       SendStatus @default(PENDING)
+  nf_pages     Int[]
+  boleto_pages Int[]
   pixel_id     String?    @unique
   is_simulated Boolean    @default(false)
   sent_at      DateTime?

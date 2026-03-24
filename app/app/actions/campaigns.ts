@@ -177,12 +177,15 @@ export async function activateCampaignAction(campaignId: string): Promise<{ erro
       if (client.email_nfe) emails.push(client.email_nfe)
       else if (client.email) emails.push(client.email)
     }
+    const boletoPgs = bolCnpjPage.has(cnpj) ? [bolCnpjPage.get(cnpj)!] : []
 
     sends.push({
-      campaign_id: campaignId,
-      client_cnpj: cnpj,
-      client_name: client?.name ?? cnpj,
+      campaign_id:  campaignId,
+      client_cnpj:  cnpj,
+      client_name:  client?.name ?? cnpj,
       emails,
+      nf_pages:     pages,          // 1-indexed page numbers
+      boleto_pages: boletoPgs,
       status: emails.length > 0 ? 'PENDING' : 'NO_EMAIL',
     })
   }
@@ -196,10 +199,12 @@ export async function activateCampaignAction(campaignId: string): Promise<{ erro
       else if (client?.email) emails.push(client.email)
 
       sends.push({
-        campaign_id: campaignId,
-        client_cnpj: cnpj,
-        client_name: client?.name ?? cnpj,
+        campaign_id:  campaignId,
+        client_cnpj:  cnpj,
+        client_name:  client?.name ?? cnpj,
         emails,
+        nf_pages:     [],
+        boleto_pages: [bolCnpjPage.get(cnpj)!],
         status: emails.length > 0 ? 'PENDING' : 'NO_EMAIL',
       })
     }
