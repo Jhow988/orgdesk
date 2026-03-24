@@ -3,7 +3,7 @@
 import { useState, useMemo, useTransition } from 'react'
 import { enviarSendsAction } from '@/app/actions/campaign-send'
 import { useRouter } from 'next/navigation'
-import { Search, Send, X, RefreshCw } from 'lucide-react'
+import { Search, Send, X, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react'
 
 type SendStatus = 'PENDING' | 'SENT' | 'FAILED' | 'NO_EMAIL' | 'NO_CADASTRO' | 'SIMULATED'
 
@@ -50,6 +50,8 @@ const STATUS_CLASS: Record<SendStatus, string> = {
   SIMULATED:   'bg-blue-900/50 text-blue-400',
 }
 
+const PAGE_SIZE = 20
+
 export function CampaignSendPanel({ campaigns, defaultCampaignId }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
@@ -59,6 +61,7 @@ export function CampaignSendPanel({ campaigns, defaultCampaignId }: Props) {
   const [statusFilter, setStatusFilter] = useState<string>('Todas')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [toast, setToast] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
 
   const campaign = campaigns.find(c => c.id === campaignId)
   const sends = campaign?.sends ?? []
@@ -75,6 +78,16 @@ export function CampaignSendPanel({ campaigns, defaultCampaignId }: Props) {
     })
   }, [sends, search, statusFilter])
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const currentPage = Math.min(page, totalPages)
+  const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+
+  function handleFilterChange(newSearch: string, newStatus: string) {
+    setSearch(newSearch)
+    setStatusFilter(newStatus)
+    setPage(1)
+  }
+
   const stats = useMemo(() => ({
     total:    sends.length,
     enviadas: sends.filter(s => s.status === 'SENT' || s.status === 'SIMULATED').length,
@@ -82,7 +95,6 @@ export function CampaignSendPanel({ campaigns, defaultCampaignId }: Props) {
     semEmail: sends.filter(s => s.status === 'NO_EMAIL').length,
   }), [sends])
 
-  // Selection helpers
   const allFilteredSelected = filtered.length > 0 && filtered.every(s => selected.has(s.id))
 
   function toggleAll() {
@@ -149,7 +161,7 @@ export function CampaignSendPanel({ campaigns, defaultCampaignId }: Props) {
         </div>
         <select
           value={campaignId}
-          onChange={e => { setCampaignId(e.target.value); setSelected(new Set()) }}
+          onChange={e => { setCampaignId(e.target.value); setSelected(new Set()); setPage(1) }}
           className="rounded-md border border-white/[0.1] bg-white/[0.06] px-3 py-1.5 text-xs text-zinc-200 focus:outline-none"
         >
           {campaigns.map(c => (
@@ -161,8 +173,8 @@ export function CampaignSendPanel({ campaigns, defaultCampaignId }: Props) {
       {/* Stats */}
       <div className="grid grid-cols-4 gap-3">
         {[
-          { label: 'NFs no PDF', value: stats.total, color: 'text-zinc-100' },
-          { label: 'Enviadas',   value: stats.enviadas, color: 'text-emerald-400' },
+          { label: 'NFs no PDF', value: stats.total,    color: 'text-zinc-100' },
+          { label: 'Enviadas',   value: stats.enviadas,  color: 'text-emerald-400' },
           { label: 'Pendentes',  value: stats.pendentes, color: 'text-yellow-400' },
           { label: 'Sem e-mail', value: stats.semEmail,  color: 'text-orange-400' },
         ].map(s => (
@@ -179,14 +191,14 @@ export function CampaignSendPanel({ campaigns, defaultCampaignId }: Props) {
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
           <input
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={e => handleFilterChange(e.target.value, statusFilter)}
             placeholder="Buscar nome, CNPJ, e-mail..."
             className="w-full rounded-md border border-white/[0.1] bg-white/[0.06] py-2 pl-8 pr-3 text-sm text-zinc-100 placeholder-zinc-600 focus:border-white/20 focus:outline-none"
           />
         </div>
         <select
           value={statusFilter}
-          onChange={e => setStatusFilter(e.target.value)}
+          onChange={e => handleFilterChange(search, e.target.value)}
           className="rounded-md border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-sm text-zinc-200 focus:outline-none"
         >
           <option>Todas</option>
@@ -257,13 +269,13 @@ export function CampaignSendPanel({ campaigns, defaultCampaignId }: Props) {
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 ? (
+            {paginated.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-4 py-10 text-center text-zinc-500">
                   Nenhum registro encontrado.
                 </td>
               </tr>
-            ) : filtered.map(s => (
+            ) : paginated.map(s => (
               <tr
                 key={s.id}
                 className={`border-b border-white/[0.06] last:border-0 transition-colors ${
@@ -288,7 +300,7 @@ export function CampaignSendPanel({ campaigns, defaultCampaignId }: Props) {
                   {s.emails.length > 0 ? s.emails[0] : <span className="text-zinc-600">—</span>}
                 </td>
                 <td className="px-4 py-3 text-xs text-zinc-400">
-                  {s.invoice ? `${s.invoice.number ? `Nº ${s.invoice.number}` : 'NF'}`  : '—'}
+                  {s.invoice ? `${s.invoice.number ? `Nº ${s.invoice.number}` : 'NF'}` : '—'}
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex gap-1.5">
@@ -329,6 +341,72 @@ export function CampaignSendPanel({ campaigns, defaultCampaignId }: Props) {
           </tbody>
         </table>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-1">
+          <p className="text-xs text-zinc-500">
+            {((currentPage - 1) * PAGE_SIZE) + 1}–{Math.min(currentPage * PAGE_SIZE, filtered.length)} de {filtered.length} registros
+          </p>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setPage(1)}
+              disabled={currentPage === 1}
+              className="rounded px-2 py-1 text-xs text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              «
+            </button>
+            <button
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="rounded p-1 text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft size={14} />
+            </button>
+
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(p => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 2)
+              .reduce<(number | '...')[]>((acc, p, idx, arr) => {
+                if (idx > 0 && (p as number) - (arr[idx - 1] as number) > 1) acc.push('...')
+                acc.push(p)
+                return acc
+              }, [])
+              .map((p, i) =>
+                p === '...' ? (
+                  <span key={`ellipsis-${i}`} className="px-1 text-xs text-zinc-600">…</span>
+                ) : (
+                  <button
+                    key={p}
+                    onClick={() => setPage(p as number)}
+                    className={`min-w-[28px] rounded px-2 py-1 text-xs transition-colors ${
+                      currentPage === p
+                        ? 'bg-indigo-600 text-white'
+                        : 'text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                )
+              )
+            }
+
+            <button
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="rounded p-1 text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronRight size={14} />
+            </button>
+            <button
+              onClick={() => setPage(totalPages)}
+              disabled={currentPage === totalPages}
+              className="rounded px-2 py-1 text-xs text-zinc-400 hover:bg-white/[0.06] hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              »
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
