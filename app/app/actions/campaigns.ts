@@ -16,19 +16,25 @@ function monthYearToLabel(iso: string): string {
 }
 
 async function parsePdfPages(buffer: Buffer): Promise<string[]> {
-  // Lazy require so pdf-parse is not evaluated at build/module-load time
+  // Split PDF into individual pages with pdf-lib, then parse each with pdf-parse.
+  // Avoids the broken pagerender callback in pdf-parse's bundled old pdfjs.
+  const { PDFDocument } = await import('pdf-lib')
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const pdfParse = require('pdf-parse')
+
+  const srcDoc = await PDFDocument.load(buffer)
+  const numPages = srcDoc.getPageCount()
   const pages: string[] = []
-  await pdfParse(buffer, {
-    pagerender(pageData: any) {
-      return pageData.getTextContent().then((content: any) => {
-        const text = content.items.map((i: any) => i.str).join(' ')
-        pages.push(text)
-        return text
-      })
-    },
-  })
+
+  for (let i = 0; i < numPages; i++) {
+    const singleDoc = await PDFDocument.create()
+    const [page] = await singleDoc.copyPages(srcDoc, [i])
+    singleDoc.addPage(page)
+    const singleBuffer = Buffer.from(await singleDoc.save())
+    const data = await pdfParse(singleBuffer)
+    pages.push(data.text as string)
+  }
+
   return pages
 }
 
