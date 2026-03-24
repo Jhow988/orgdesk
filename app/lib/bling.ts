@@ -296,7 +296,8 @@ export async function syncContasReceber(orgId: string, filters: ReceivableFilter
           },
         })
         result.upserted++
-      } catch {
+      } catch (e) {
+        console.error('[bling] upsert error id', item.id, (e as Error)?.message ?? e)
         result.errors++
       }
     }
