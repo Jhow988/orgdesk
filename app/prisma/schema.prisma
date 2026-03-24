@@ -259,12 +259,19 @@ model Client {
   cnpj            String
   name            String
   trade_name      String?
-  email           String?
-  email_nfe       String?
-  email_boleto    String?
-  phone           String?
-  address         String?
-  notes           String?
+  email              String?
+  email_nfe          String?
+  email_boleto       String?
+  phone              String?
+  address            String?   // legacy single-line, kept for compat
+  address_street     String?
+  address_number     String?
+  address_complement String?
+  address_district   String?
+  address_city       String?
+  address_state      String?
+  address_zip        String?
+  notes              String?
   is_active       Boolean  @default(true)
   bling_id        String?
   created_at      DateTime @default(now())

@@ -3,18 +3,26 @@
 import { useState, useMemo, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Search, RefreshCw, ChevronLeft, ChevronRight, Link2, Link2Off, Pencil, X } from 'lucide-react'
-import { syncBlingAction, getBlingConnectUrlAction, disconnectBlingAction, updateClientAction } from '@/app/actions/bling'
+import { syncBlingAction, getBlingConnectUrlAction, disconnectBlingAction, updateClientAction, type ClientUpdateData } from '@/app/actions/bling'
 
 interface Client {
-  id:         string
-  cnpj:       string
-  name:       string
-  trade_name: string | null
-  email:      string | null
-  phone:      string | null
-  is_active:  boolean
-  bling_id:   string | null
-  created_at: string
+  id:                 string
+  cnpj:               string
+  name:               string
+  trade_name:         string | null
+  email:              string | null
+  email_boleto:       string | null
+  phone:              string | null
+  is_active:          boolean
+  bling_id:           string | null
+  created_at:         string
+  address_street:     string | null
+  address_number:     string | null
+  address_complement: string | null
+  address_district:   string | null
+  address_city:       string | null
+  address_state:      string | null
+  address_zip:        string | null
 }
 
 interface Props {
@@ -38,7 +46,11 @@ export function ClientsTable({ clients, blingConnected, lastSyncAt, flashConnect
   const [page, setPage]     = useState(1)
   const [toast, setToast]   = useState<{ msg: string; ok: boolean } | null>(null)
   const [editing, setEditing] = useState<Client | null>(null)
-  const [editForm, setEditForm] = useState({ name: '', trade_name: '', email: '', phone: '' })
+  const [editForm, setEditForm] = useState<ClientUpdateData>({
+    name: '', trade_name: '', email: '', email_boleto: '', phone: '',
+    address_street: '', address_number: '', address_complement: '',
+    address_district: '', address_city: '', address_state: '', address_zip: '',
+  })
 
   // Show flash messages from OAuth redirect
   useEffect(() => {
@@ -98,10 +110,18 @@ export function ClientsTable({ clients, blingConnected, lastSyncAt, flashConnect
   function openEdit(c: Client) {
     setEditing(c)
     setEditForm({
-      name:       c.name,
-      trade_name: c.trade_name ?? '',
-      email:      c.email ?? '',
-      phone:      c.phone ?? '',
+      name:               c.name,
+      trade_name:         c.trade_name         ?? '',
+      email:              c.email              ?? '',
+      email_boleto:       c.email_boleto       ?? '',
+      phone:              c.phone              ?? '',
+      address_street:     c.address_street     ?? '',
+      address_number:     c.address_number     ?? '',
+      address_complement: c.address_complement ?? '',
+      address_district:   c.address_district   ?? '',
+      address_city:       c.address_city       ?? '',
+      address_state:      c.address_state      ?? '',
+      address_zip:        c.address_zip        ?? '',
     })
   }
 
@@ -144,23 +164,66 @@ export function ClientsTable({ clients, blingConnected, lastSyncAt, flashConnect
                 <X size={16} />
               </button>
             </div>
-            <div className="space-y-3">
-              {[
-                { label: 'Razão Social', key: 'name' },
-                { label: 'Nome Fantasia', key: 'trade_name' },
-                { label: 'E-mail', key: 'email' },
-                { label: 'Telefone', key: 'phone' },
-              ].map(({ label, key }) => (
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+              <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Dados Gerais</p>
+              {([
+                { label: 'Razão Social *', key: 'name' },
+                { label: 'Nome Fantasia',  key: 'trade_name' },
+                { label: 'E-mail',         key: 'email' },
+                { label: 'E-mail Cobrança',key: 'email_boleto' },
+                { label: 'Telefone',       key: 'phone' },
+              ] as { label: string; key: keyof ClientUpdateData }[]).map(({ label, key }) => (
                 <div key={key}>
                   <label className="mb-1 block text-xs text-zinc-400">{label}</label>
                   <input
                     type="text"
-                    value={editForm[key as keyof typeof editForm]}
+                    value={editForm[key]}
                     onChange={e => setEditForm(f => ({ ...f, [key]: e.target.value }))}
                     className="w-full rounded-md border border-white/[0.08] bg-white/[0.05] px-3 py-2 text-sm text-zinc-200 outline-none focus:border-indigo-500/50"
                   />
                 </div>
               ))}
+              <p className="pt-1 text-xs font-medium text-zinc-500 uppercase tracking-wider">Endereço</p>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="col-span-2">
+                  <label className="mb-1 block text-xs text-zinc-400">Logradouro</label>
+                  <input type="text" value={editForm.address_street}
+                    onChange={e => setEditForm(f => ({ ...f, address_street: e.target.value }))}
+                    className="w-full rounded-md border border-white/[0.08] bg-white/[0.05] px-3 py-2 text-sm text-zinc-200 outline-none focus:border-indigo-500/50" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-zinc-400">Número</label>
+                  <input type="text" value={editForm.address_number}
+                    onChange={e => setEditForm(f => ({ ...f, address_number: e.target.value }))}
+                    className="w-full rounded-md border border-white/[0.08] bg-white/[0.05] px-3 py-2 text-sm text-zinc-200 outline-none focus:border-indigo-500/50" />
+                </div>
+              </div>
+              {([
+                { label: 'Complemento', key: 'address_complement' },
+                { label: 'Bairro',      key: 'address_district' },
+                { label: 'Cidade',      key: 'address_city' },
+              ] as { label: string; key: keyof ClientUpdateData }[]).map(({ label, key }) => (
+                <div key={key}>
+                  <label className="mb-1 block text-xs text-zinc-400">{label}</label>
+                  <input type="text" value={editForm[key]}
+                    onChange={e => setEditForm(f => ({ ...f, [key]: e.target.value }))}
+                    className="w-full rounded-md border border-white/[0.08] bg-white/[0.05] px-3 py-2 text-sm text-zinc-200 outline-none focus:border-indigo-500/50" />
+                </div>
+              ))}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="mb-1 block text-xs text-zinc-400">UF</label>
+                  <input type="text" maxLength={2} value={editForm.address_state}
+                    onChange={e => setEditForm(f => ({ ...f, address_state: e.target.value.toUpperCase() }))}
+                    className="w-full rounded-md border border-white/[0.08] bg-white/[0.05] px-3 py-2 text-sm text-zinc-200 outline-none focus:border-indigo-500/50" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-zinc-400">CEP</label>
+                  <input type="text" value={editForm.address_zip}
+                    onChange={e => setEditForm(f => ({ ...f, address_zip: e.target.value }))}
+                    className="w-full rounded-md border border-white/[0.08] bg-white/[0.05] px-3 py-2 text-sm text-zinc-200 outline-none focus:border-indigo-500/50" />
+                </div>
+              </div>
             </div>
             {editing.bling_id && (
               <p className="mt-3 text-xs text-indigo-400">Este cliente será atualizado no Bling também.</p>

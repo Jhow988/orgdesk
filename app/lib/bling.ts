@@ -108,10 +108,14 @@ interface BlingContato {
   situacao?:        string
   emails?:          Array<{ email: string; tipo?: { id: number; descricao: string } }>
   endereco?: {
-    geral?: string
-    municipio?: string
-    uf?: string
-    cep?: string
+    endereco?:    string   // street name (v3 field name matches parent key)
+    geral?:       string   // v2 fallback
+    numero?:      string
+    complemento?: string
+    bairro?:      string
+    municipio?:   string
+    uf?:          string
+    cep?:         string
   }
 }
 
@@ -127,9 +131,33 @@ function extractEmails(c: BlingContato): { email: string | null; email_nfe: stri
   }
 }
 
-function buildAddress(e?: BlingContato['endereco']): string | null {
-  if (!e) return null
-  return [e.geral, e.municipio, e.uf, e.cep].filter(Boolean).join(', ') || null
+function buildAddress(e?: BlingContato['endereco']): {
+  address: string | null
+  address_street: string | null
+  address_number: string | null
+  address_complement: string | null
+  address_district: string | null
+  address_city: string | null
+  address_state: string | null
+  address_zip: string | null
+} {
+  const empty = {
+    address: null, address_street: null, address_number: null,
+    address_complement: null, address_district: null,
+    address_city: null, address_state: null, address_zip: null,
+  }
+  if (!e) return empty
+  const street = e.endereco ?? e.geral ?? null
+  return {
+    address:            [street, e.numero, e.municipio, e.uf, e.cep].filter(Boolean).join(', ') || null,
+    address_street:     street,
+    address_number:     e.numero     ?? null,
+    address_complement: e.complemento ?? null,
+    address_district:   e.bairro     ?? null,
+    address_city:       e.municipio  ?? null,
+    address_state:      e.uf         ?? null,
+    address_zip:        e.cep        ?? null,
+  }
 }
 
 export interface SyncResult {
@@ -159,7 +187,7 @@ export async function syncContatos(orgId: string): Promise<SyncResult> {
       if (cnpj.length !== 14) { result.skipped++; continue }
 
       const { email, email_nfe } = extractEmails(c)
-      const address = buildAddress(c.endereco)
+      const addr = buildAddress(c.endereco)
 
       try {
         await adminPrisma.client.upsert({
@@ -172,9 +200,9 @@ export async function syncContatos(orgId: string): Promise<SyncResult> {
             email,
             email_nfe,
             phone:      c.telefone ?? null,
-            address,
             is_active:  c.situacao !== 'I',
             bling_id:   String(c.id),
+            ...addr,
           },
           update: {
             name:       c.nome,
@@ -182,9 +210,9 @@ export async function syncContatos(orgId: string): Promise<SyncResult> {
             email,
             email_nfe,
             phone:      c.telefone ?? null,
-            address,
             is_active:  c.situacao !== 'I',
             bling_id:   String(c.id),
+            ...addr,
           },
         })
         result.upserted++
@@ -315,10 +343,18 @@ export async function syncContasReceber(orgId: string, filters: ReceivableFilter
 // ─── Update contact in Bling ──────────────────────────────────────────────────
 
 export interface BlingContactUpdate {
-  name?:       string
-  trade_name?: string
-  email?:      string
-  phone?:      string
+  name?:              string
+  trade_name?:        string
+  email?:             string
+  email_boleto?:      string
+  phone?:             string
+  address_street?:    string
+  address_number?:    string
+  address_complement?:string
+  address_district?:  string
+  address_city?:      string
+  address_state?:     string
+  address_zip?:       string
 }
 
 export async function updateContatoBling(
@@ -328,10 +364,27 @@ export async function updateContatoBling(
 ): Promise<void> {
   const token = await getAccessToken(orgId)
   const body: Record<string, unknown> = {}
-  if (data.name       !== undefined) body.nome     = data.name
-  if (data.trade_name !== undefined) body.fantasia  = data.trade_name
-  if (data.email      !== undefined) body.email    = data.email
-  if (data.phone      !== undefined) body.fone     = data.phone
+  if (data.name        !== undefined) body.nome    = data.name
+  if (data.trade_name  !== undefined) body.fantasia = data.trade_name
+  if (data.email       !== undefined) body.email   = data.email
+  if (data.phone       !== undefined) body.fone    = data.phone
+
+  const hasAddress = [
+    data.address_street, data.address_number, data.address_complement,
+    data.address_district, data.address_city, data.address_state, data.address_zip,
+  ].some(v => v !== undefined)
+
+  if (hasAddress) {
+    body.endereco = {
+      endereco:    data.address_street    ?? '',
+      numero:      data.address_number    ?? '',
+      complemento: data.address_complement ?? '',
+      bairro:      data.address_district  ?? '',
+      municipio:   data.address_city      ?? '',
+      uf:          data.address_state     ?? '',
+      cep:         data.address_zip       ?? '',
+    }
+  }
 
   const res = await fetch(`${BLING_API}/contatos/${blingId}`, {
     method:  'PUT',
