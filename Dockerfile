@@ -5,12 +5,12 @@ WORKDIR /app
 # Install all deps for building (including devDeps for tailwind, typescript, etc.)
 FROM base AS deps
 COPY app/package.json app/package-lock.json ./
-RUN NODE_ENV=development npm ci
+RUN NODE_ENV=development npm ci --legacy-peer-deps
 
 # Install only production deps (includes prisma CLI and all its transitive deps)
 FROM base AS prod-deps
 COPY app/package.json app/package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --legacy-peer-deps
 
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
