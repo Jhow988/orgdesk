@@ -7,7 +7,8 @@ export async function GET(req: NextRequest) {
   const state = searchParams.get('state')
   const error = searchParams.get('error')
 
-  const base = new URL('/clients', req.url)
+  const appUrl = (process.env.NEXTAUTH_URL ?? '').replace(/\/$/, '')
+  const base = new URL(`${appUrl}/clients`)
 
   if (error) {
     base.searchParams.set('bling_error', error)
