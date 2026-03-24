@@ -252,8 +252,11 @@ export async function syncContasReceber(orgId: string, filters: ReceivableFilter
     })
     if (!res.ok) throw new Error(`Bling contasreceber: ${res.status} ${await res.text()}`)
 
-    const body = (await res.json()) as { data?: BlingContaReceber[] }
-    const items = body.data ?? []
+    // Bling API v3: some endpoints return { data: [...] }, others return { data: { data: [...], paginator: {} } }
+    const raw = await res.json() as { data?: BlingContaReceber[] | { data: BlingContaReceber[] } }
+    const items: BlingContaReceber[] = Array.isArray(raw.data)
+      ? raw.data
+      : ((raw.data as any)?.data ?? [])
     if (!items.length) break
 
     for (const item of items) {
