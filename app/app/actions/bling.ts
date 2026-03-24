@@ -2,7 +2,7 @@
 
 import { auth } from '@/auth'
 import { adminPrisma } from '@/lib/prisma'
-import { syncContatos, getBlingAuthUrl } from '@/lib/bling'
+import { syncContatos, syncContasReceber, getBlingAuthUrl, type ReceivableFilters } from '@/lib/bling'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
@@ -31,6 +31,22 @@ export async function syncBlingAction(): Promise<{
   try {
     const result = await syncContatos(orgId)
     revalidatePath('/clients')
+    return result
+  } catch (e: unknown) {
+    return { error: e instanceof Error ? e.message : 'Erro desconhecido' }
+  }
+}
+
+export async function syncReceivablesAction(filters: ReceivableFilters): Promise<{
+  upserted?: number
+  skipped?:  number
+  errors?:   number
+  error?:    string
+}> {
+  const orgId = await requireOrg()
+  try {
+    const result = await syncContasReceber(orgId, filters)
+    revalidatePath('/invoices')
     return result
   } catch (e: unknown) {
     return { error: e instanceof Error ? e.message : 'Erro desconhecido' }

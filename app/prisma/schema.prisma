@@ -165,8 +165,9 @@ model Organization {
   products       Product[]
   proposals      Proposal[]
   contracts      Contract[]
-  pix_charges       PixCharge[]
-  bling_integration BlingIntegration?
+  pix_charges          PixCharge[]
+  bling_integration    BlingIntegration?
+  account_receivables  AccountReceivable[]
 
   @@map("organizations")
 }
@@ -184,6 +185,30 @@ model BlingIntegration {
   organization Organization @relation(fields: [organization_id], references: [id])
 
   @@map("bling_integrations")
+}
+
+model AccountReceivable {
+  id              String    @id @default(cuid())
+  organization_id String
+  bling_id        String
+  client_name     String
+  client_cnpj     String?
+  document_number String?
+  due_date        DateTime
+  competence_date DateTime?
+  value           Decimal   @db.Decimal(15, 2)
+  balance         Decimal   @db.Decimal(15, 2)
+  status          Int       // 1=Em Aberto 2=Recebido 3=Cancelado 9=Parcial
+  description     String?
+  category        String?
+  created_at      DateTime  @default(now())
+  updated_at      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organization_id], references: [id])
+
+  @@unique([organization_id, bling_id])
+  @@index([organization_id, due_date])
+  @@map("account_receivables")
 }
 
 model User {

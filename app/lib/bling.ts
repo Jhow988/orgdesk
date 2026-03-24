@@ -204,3 +204,98 @@ export async function syncContatos(orgId: string): Promise<SyncResult> {
 
   return result
 }
+
+// ─── Accounts Receivable sync ─────────────────────────────────────────────────
+
+export interface ReceivableFilters {
+  dataVencimentoInicio?: string  // YYYY-MM-DD
+  dataVencimentoFim?: string
+  dataEmissaoInicio?: string
+  dataEmissaoFim?: string
+  situacoes?: number[]           // 1=Em Aberto 2=Recebido 3=Cancelado 9=Parcial
+}
+
+interface BlingContaReceber {
+  id:              number
+  situacao:        number
+  vencimento:      string
+  competencia?:    string
+  nroDocumento?:   string
+  valor:           number
+  saldo:           number
+  historico?:      string
+  contato?: {
+    id:              number
+    nome:            string
+    numeroDocumento?: string
+  }
+  categoria?: { descricao: string }
+}
+
+export async function syncContasReceber(orgId: string, filters: ReceivableFilters): Promise<SyncResult> {
+  const accessToken = await getAccessToken(orgId)
+  const result: SyncResult = { upserted: 0, skipped: 0, errors: 0 }
+  let page = 1
+
+  while (true) {
+    const params = new URLSearchParams({ pagina: String(page), limite: '100' })
+    if (filters.dataVencimentoInicio) params.set('dataVencimentoInicio', filters.dataVencimentoInicio)
+    if (filters.dataVencimentoFim)   params.set('dataVencimentoFim',    filters.dataVencimentoFim)
+    if (filters.dataEmissaoInicio)   params.set('dataEmissaoInicio',    filters.dataEmissaoInicio)
+    if (filters.dataEmissaoFim)      params.set('dataEmissaoFim',       filters.dataEmissaoFim)
+    if (filters.situacoes?.length) {
+      filters.situacoes.forEach(s => params.append('situacoes[]', String(s)))
+    }
+
+    const res = await fetch(`${BLING_API}/contasreceber?${params}`, {
+      headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
+    })
+    if (!res.ok) throw new Error(`Bling contasreceber: ${res.status} ${await res.text()}`)
+
+    const body = (await res.json()) as { data?: BlingContaReceber[] }
+    const items = body.data ?? []
+    if (!items.length) break
+
+    for (const item of items) {
+      try {
+        await adminPrisma.accountReceivable.upsert({
+          where: { organization_id_bling_id: { organization_id: orgId, bling_id: String(item.id) } },
+          create: {
+            organization_id: orgId,
+            bling_id:        String(item.id),
+            client_name:     item.contato?.nome ?? 'Desconhecido',
+            client_cnpj:     item.contato?.numeroDocumento?.replace(/\D/g, '') || null,
+            document_number: item.nroDocumento ?? null,
+            due_date:        new Date(item.vencimento),
+            competence_date: item.competencia ? new Date(item.competencia) : null,
+            value:           item.valor,
+            balance:         item.saldo,
+            status:          item.situacao,
+            description:     item.historico ?? null,
+            category:        item.categoria?.descricao ?? null,
+          },
+          update: {
+            client_name:     item.contato?.nome ?? 'Desconhecido',
+            client_cnpj:     item.contato?.numeroDocumento?.replace(/\D/g, '') || null,
+            document_number: item.nroDocumento ?? null,
+            due_date:        new Date(item.vencimento),
+            competence_date: item.competencia ? new Date(item.competencia) : null,
+            value:           item.valor,
+            balance:         item.saldo,
+            status:          item.situacao,
+            description:     item.historico ?? null,
+            category:        item.categoria?.descricao ?? null,
+          },
+        })
+        result.upserted++
+      } catch {
+        result.errors++
+      }
+    }
+
+    if (items.length < 100) break
+    page++
+  }
+
+  return result
+}
