@@ -247,16 +247,21 @@ export async function syncContasReceber(orgId: string, filters: ReceivableFilter
       filters.situacoes.forEach(s => params.append('situacoes[]', String(s)))
     }
 
-    const res = await fetch(`${BLING_API}/contas/receber?${params}`, {
+    const url = `${BLING_API}/contas/receber?${params}`
+    console.log('[bling] GET', url)
+    const res = await fetch(url, {
       headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
     })
-    if (!res.ok) throw new Error(`Bling contasreceber: ${res.status} ${await res.text()}`)
+    const rawText = await res.text()
+    console.log('[bling] status', res.status, 'body', rawText.slice(0, 500))
+    if (!res.ok) throw new Error(`Bling contasreceber: ${res.status} ${rawText}`)
 
     // Bling API v3: some endpoints return { data: [...] }, others return { data: { data: [...], paginator: {} } }
-    const raw = await res.json() as { data?: BlingContaReceber[] | { data: BlingContaReceber[] } }
+    const raw = JSON.parse(rawText) as { data?: BlingContaReceber[] | { data: BlingContaReceber[] } }
     const items: BlingContaReceber[] = Array.isArray(raw.data)
       ? raw.data
       : ((raw.data as any)?.data ?? [])
+    console.log('[bling] items count', items.length)
     if (!items.length) break
 
     for (const item of items) {
