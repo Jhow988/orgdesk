@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
-  serverExternalPackages: ['@prisma/client', 'bcryptjs', 'pdf-parse', 'nodemailer', 'pdf-lib'],
+  serverExternalPackages: ['@prisma/client', 'bcryptjs', 'pdf-parse', 'nodemailer', 'pdf-lib', 'pdfjs-dist'],
   experimental: {
     serverActions: {
       bodySizeLimit: '20mb',

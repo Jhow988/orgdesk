@@ -16,25 +16,28 @@ function monthYearToLabel(iso: string): string {
 }
 
 async function parsePdfPages(buffer: Buffer): Promise<string[]> {
-  // Split PDF into individual pages with pdf-lib, then parse each with pdf-parse.
-  // Avoids the broken pagerender callback in pdf-parse's bundled old pdfjs.
-  const { PDFDocument } = await import('pdf-lib')
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const pdfParse = require('pdf-parse')
+  // Use pdfjs-dist directly (already installed as dep of pdf-parse).
+  // Avoids pdf-parse v2's @napi-rs/canvas native dependency which fails on Alpine Linux.
+  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs')
+  pdfjsLib.GlobalWorkerOptions.workerSrc = '' // disable Web Worker (not available in Node.js)
 
-  const srcDoc = await PDFDocument.load(buffer)
-  const numPages = srcDoc.getPageCount()
+  const doc = await pdfjsLib.getDocument({
+    data: new Uint8Array(buffer),
+    useWorkerFetch: false,
+    isEvalSupported: false,
+    useSystemFonts: true,
+  }).promise
+
   const pages: string[] = []
-
-  for (let i = 0; i < numPages; i++) {
-    const singleDoc = await PDFDocument.create()
-    const [page] = await singleDoc.copyPages(srcDoc, [i])
-    singleDoc.addPage(page)
-    const singleBuffer = Buffer.from(await singleDoc.save())
-    const data = await pdfParse(singleBuffer)
-    pages.push(data.text as string)
+  for (let i = 1; i <= doc.numPages; i++) {
+    const page = await doc.getPage(i)
+    const content = await page.getTextContent()
+    const text = content.items
+      .filter((item: any) => 'str' in item)
+      .map((item: any) => item.str as string)
+      .join(' ')
+    pages.push(text)
   }
-
   return pages
 }
 
