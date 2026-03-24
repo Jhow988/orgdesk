@@ -247,7 +247,7 @@ export async function syncContasReceber(orgId: string, filters: ReceivableFilter
       filters.situacoes.forEach(s => params.append('situacoes[]', String(s)))
     }
 
-    const res = await fetch(`${BLING_API}/contasreceber?${params}`, {
+    const res = await fetch(`${BLING_API}/contas/receber?${params}`, {
       headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' },
     })
     if (!res.ok) throw new Error(`Bling contasreceber: ${res.status} ${await res.text()}`)
