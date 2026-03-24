@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  LayoutDashboard, Building2, FileText, Zap, Receipt,
+  LayoutDashboard, Building2, Receipt,
   Megaphone, BarChart2, MessageSquare, Users, Package,
   UserCog, FileCheck, FileSignature, Briefcase, Shield,
   Settings, MapPin, Send, SendHorizonal,
@@ -64,7 +64,7 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
-    label: 'Configuração',
+    label: 'Configurações',
     items: [
       { href: '/settings/permissions', label: 'Permissões',       icon: Shield },
       { href: '/settings/company',     label: 'Dados da empresa', icon: Settings },
