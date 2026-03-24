@@ -30,6 +30,22 @@ const NAV_SECTIONS: NavSection[] = [
     ],
   },
   {
+    label: 'Cadastro',
+    items: [
+      { href: '/clients',            label: 'Clientes',          icon: Users },
+      { href: '/comercial/products', label: 'Produtos/Serviços', icon: Package },
+      { href: '/users',              label: 'Usuários',          icon: UserCog },
+    ],
+  },
+  {
+    label: 'Vendas',
+    items: [
+      { href: '/comercial/proposals', label: 'Propostas', icon: FileCheck },
+      { href: '/comercial/contracts', label: 'Contratos', icon: FileSignature },
+      { href: '/comercial/crm',       label: 'CRM',       icon: Briefcase },
+    ],
+  },
+  {
     label: 'Financeiro',
     items: [
       { href: '/financeiro/enviar-cobranca', label: 'Enviar Cobrança',   icon: SendHorizonal },
@@ -45,22 +61,6 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: '/tickets',            label: 'Chamados',   icon: MessageSquare },
       { href: '/tickets/relatorios', label: 'Relatórios', icon: BarChart2 },
-    ],
-  },
-  {
-    label: 'Cadastro',
-    items: [
-      { href: '/clients',            label: 'Clientes',          icon: Users },
-      { href: '/comercial/products', label: 'Produtos/Serviços', icon: Package },
-      { href: '/users',              label: 'Usuários',          icon: UserCog },
-    ],
-  },
-  {
-    label: 'Vendas',
-    items: [
-      { href: '/comercial/proposals', label: 'Propostas', icon: FileCheck },
-      { href: '/comercial/contracts', label: 'Contratos', icon: FileSignature },
-      { href: '/comercial/crm',       label: 'CRM',       icon: Briefcase },
     ],
   },
   {
