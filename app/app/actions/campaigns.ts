@@ -16,28 +16,22 @@ function monthYearToLabel(iso: string): string {
 }
 
 async function parsePdfPages(buffer: Buffer): Promise<string[]> {
-  // Use pdfjs-dist directly (already installed as dep of pdf-parse).
-  // Avoids pdf-parse v2's @napi-rs/canvas native dependency which fails on Alpine Linux.
-  const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs')
-  pdfjsLib.GlobalWorkerOptions.workerSrc = '' // disable Web Worker (not available in Node.js)
-
-  const doc = await pdfjsLib.getDocument({
-    data: new Uint8Array(buffer),
-    useWorkerFetch: false,
-    isEvalSupported: false,
-    useSystemFonts: true,
-  }).promise
-
+  // pdf-parse v1.1.1 bundles its own pdfjs 1.10.100 (no native deps, no DOMMatrix needed).
+  // The pagerender callback works reliably with this old bundled pdfjs version.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const pdfParse = require('pdf-parse')
   const pages: string[] = []
-  for (let i = 1; i <= doc.numPages; i++) {
-    const page = await doc.getPage(i)
-    const content = await page.getTextContent()
-    const text = content.items
-      .filter((item: any) => 'str' in item)
-      .map((item: any) => item.str as string)
-      .join(' ')
-    pages.push(text)
-  }
+
+  await pdfParse(buffer, {
+    pagerender(pageData: any) {
+      return pageData.getTextContent().then((content: any) => {
+        const text = (content.items as any[]).map((i: any) => i.str ?? '').join(' ')
+        pages.push(text)
+        return text
+      })
+    },
+  })
+
   return pages
 }
 
