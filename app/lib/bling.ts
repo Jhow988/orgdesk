@@ -219,14 +219,15 @@ interface BlingContaReceber {
   id:              number
   situacao:        number
   vencimento:      string
+  dataEmissao?:    string
   competencia?:    string
   nroDocumento?:   string
   valor:           number
-  saldo:           number
+  saldo?:          number   // not always present in list endpoint
   historico?:      string
   contato?: {
-    id:              number
-    nome:            string
+    id:               number
+    nome:             string
     numeroDocumento?: string
   }
   categoria?: { descricao: string }
@@ -275,9 +276,10 @@ export async function syncContasReceber(orgId: string, filters: ReceivableFilter
             client_cnpj:     item.contato?.numeroDocumento?.replace(/\D/g, '') || null,
             document_number: item.nroDocumento ?? null,
             due_date:        new Date(item.vencimento),
-            competence_date: item.competencia ? new Date(item.competencia) : null,
+            competence_date: item.competencia ? new Date(item.competencia)
+                           : item.dataEmissao  ? new Date(item.dataEmissao) : null,
             value:           item.valor,
-            balance:         item.saldo,
+            balance:         item.saldo ?? item.valor,
             status:          item.situacao,
             description:     item.historico ?? null,
             category:        item.categoria?.descricao ?? null,
@@ -287,9 +289,10 @@ export async function syncContasReceber(orgId: string, filters: ReceivableFilter
             client_cnpj:     item.contato?.numeroDocumento?.replace(/\D/g, '') || null,
             document_number: item.nroDocumento ?? null,
             due_date:        new Date(item.vencimento),
-            competence_date: item.competencia ? new Date(item.competencia) : null,
+            competence_date: item.competencia ? new Date(item.competencia)
+                           : item.dataEmissao  ? new Date(item.dataEmissao) : null,
             value:           item.valor,
-            balance:         item.saldo,
+            balance:         item.saldo ?? item.valor,
             status:          item.situacao,
             description:     item.historico ?? null,
             category:        item.categoria?.descricao ?? null,
