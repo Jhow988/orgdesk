@@ -311,3 +311,35 @@ export async function syncContasReceber(orgId: string, filters: ReceivableFilter
 
   return result
 }
+
+// ─── Update contact in Bling ──────────────────────────────────────────────────
+
+export interface BlingContactUpdate {
+  name?:       string
+  trade_name?: string
+  email?:      string
+  phone?:      string
+}
+
+export async function updateContatoBling(
+  orgId:   string,
+  blingId: string,
+  data:    BlingContactUpdate,
+): Promise<void> {
+  const token = await getAccessToken(orgId)
+  const body: Record<string, unknown> = {}
+  if (data.name       !== undefined) body.nome     = data.name
+  if (data.trade_name !== undefined) body.fantasia  = data.trade_name
+  if (data.email      !== undefined) body.email    = data.email
+  if (data.phone      !== undefined) body.fone     = data.phone
+
+  const res = await fetch(`${BLING_API}/contatos/${blingId}`, {
+    method:  'PUT',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body:    JSON.stringify(body),
+  })
+  if (!res.ok) {
+    const err = await res.text()
+    throw new Error(`Bling update contato ${blingId}: ${res.status} ${err}`)
+  }
+}

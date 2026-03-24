@@ -2,8 +2,8 @@
 
 import { useState, useMemo, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, RefreshCw, ChevronLeft, ChevronRight, Link2, Link2Off } from 'lucide-react'
-import { syncBlingAction, getBlingConnectUrlAction, disconnectBlingAction } from '@/app/actions/bling'
+import { Search, RefreshCw, ChevronLeft, ChevronRight, Link2, Link2Off, Pencil, X } from 'lucide-react'
+import { syncBlingAction, getBlingConnectUrlAction, disconnectBlingAction, updateClientAction } from '@/app/actions/bling'
 
 interface Client {
   id:         string
@@ -37,6 +37,8 @@ export function ClientsTable({ clients, blingConnected, lastSyncAt, flashConnect
   const [search, setSearch] = useState('')
   const [page, setPage]     = useState(1)
   const [toast, setToast]   = useState<{ msg: string; ok: boolean } | null>(null)
+  const [editing, setEditing] = useState<Client | null>(null)
+  const [editForm, setEditForm] = useState({ name: '', trade_name: '', email: '', phone: '' })
 
   // Show flash messages from OAuth redirect
   useEffect(() => {
@@ -93,6 +95,31 @@ export function ClientsTable({ clients, blingConnected, lastSyncAt, flashConnect
     })
   }
 
+  function openEdit(c: Client) {
+    setEditing(c)
+    setEditForm({
+      name:       c.name,
+      trade_name: c.trade_name ?? '',
+      email:      c.email ?? '',
+      phone:      c.phone ?? '',
+    })
+  }
+
+  function handleSaveEdit() {
+    if (!editing) return
+    startTransition(async () => {
+      const res = await updateClientAction(editing.id, editForm)
+      if (res.error) {
+        showToast(res.error, false)
+      } else {
+        setEditing(null)
+        if (res.blingWarning) showToast(`Salvo localmente. Bling: ${res.blingWarning}`, false)
+        else showToast('Cliente atualizado.')
+        router.refresh()
+      }
+    })
+  }
+
   const syncedCount = clients.filter(c => c.bling_id).length
 
   return (
@@ -104,6 +131,56 @@ export function ClientsTable({ clients, blingConnected, lastSyncAt, flashConnect
             : 'border-red-700 bg-red-900/80 text-red-300'
         }`}>
           {toast.msg}
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-xl border border-white/[0.1] bg-zinc-900 p-6 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-zinc-100">Editar Cliente</h2>
+              <button onClick={() => setEditing(null)} className="text-zinc-500 hover:text-zinc-300">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="space-y-3">
+              {[
+                { label: 'Razão Social', key: 'name' },
+                { label: 'Nome Fantasia', key: 'trade_name' },
+                { label: 'E-mail', key: 'email' },
+                { label: 'Telefone', key: 'phone' },
+              ].map(({ label, key }) => (
+                <div key={key}>
+                  <label className="mb-1 block text-xs text-zinc-400">{label}</label>
+                  <input
+                    type="text"
+                    value={editForm[key as keyof typeof editForm]}
+                    onChange={e => setEditForm(f => ({ ...f, [key]: e.target.value }))}
+                    className="w-full rounded-md border border-white/[0.08] bg-white/[0.05] px-3 py-2 text-sm text-zinc-200 outline-none focus:border-indigo-500/50"
+                  />
+                </div>
+              ))}
+            </div>
+            {editing.bling_id && (
+              <p className="mt-3 text-xs text-indigo-400">Este cliente será atualizado no Bling também.</p>
+            )}
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                onClick={() => setEditing(null)}
+                className="rounded-md border border-white/[0.08] px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={isPending}
+                className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50 transition-colors"
+              >
+                {isPending ? 'Salvando…' : 'Salvar'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -174,7 +251,7 @@ export function ClientsTable({ clients, blingConnected, lastSyncAt, flashConnect
         <table className="w-full text-sm bg-transparent">
           <thead>
             <tr className="border-b border-white/[0.08]">
-              {['Nome', 'CNPJ', 'E-mail', 'Telefone', 'Status', 'Bling'].map(h => (
+              {['Nome', 'CNPJ', 'E-mail', 'Telefone', 'Status', 'Bling', ''].map(h => (
                 <th key={h} className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
                   {h}
                 </th>
@@ -231,6 +308,15 @@ export function ClientsTable({ clients, blingConnected, lastSyncAt, flashConnect
                     ? <span className="rounded-full px-2 py-0.5 text-xs font-medium bg-indigo-900/50 text-indigo-400">Sincronizado</span>
                     : <span className="text-xs text-zinc-600">—</span>
                   }
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <button
+                    onClick={() => openEdit(c)}
+                    className="rounded p-1.5 text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200 transition-colors"
+                    title="Editar"
+                  >
+                    <Pencil size={13} />
+                  </button>
                 </td>
               </tr>
             ))}
