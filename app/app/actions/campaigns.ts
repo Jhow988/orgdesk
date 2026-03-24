@@ -134,8 +134,18 @@ export async function activateCampaignAction(campaignId: string): Promise<{ erro
     return Buffer.concat(chunks)
   }
 
-  const nfBuffer = await fetchBuffer(campaign.pdf_nf_key)
-  const nfPages  = await parsePdfPages(nfBuffer)
+  let nfBuffer: Buffer
+  try {
+    nfBuffer = await fetchBuffer(campaign.pdf_nf_key)
+  } catch (e: any) {
+    return { error: `Erro ao buscar PDF de NFs no storage: ${e?.message ?? e}` }
+  }
+  let nfPages: string[]
+  try {
+    nfPages = await parsePdfPages(nfBuffer)
+  } catch (e: any) {
+    return { error: `Erro ao processar PDF de NFs: ${e?.message ?? e}` }
+  }
 
   // Map CNPJ → pages
   const cnpjPages: Map<string, number[]> = new Map()

@@ -1,5 +1,5 @@
 import { auth } from '@/auth'
-import { prisma } from '@/lib/prisma'
+import { adminPrisma as prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import { CampaignSendPanel } from './_components/CampaignSendPanel'
 
@@ -32,7 +32,7 @@ export default async function EnviarCobrancaPage() {
       client_name: s.client_name,
       emails: s.emails,
       status: s.status,
-      sent_at: s.sent_at,
+      sent_at: s.sent_at ? s.sent_at.toISOString() : null,
       open_count: s.open_count,
       invoice: s.invoice
         ? { id: s.invoice.id, number: s.invoice.number, amount: Number(s.invoice.amount) }
