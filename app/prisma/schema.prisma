@@ -588,12 +588,14 @@ model Product {
   unit            String?     @default("un")
   price           Decimal     @db.Decimal(12, 2) @default(0)
   is_active       Boolean     @default(true)
+  bling_id        String?
   created_at      DateTime    @default(now())
   updated_at      DateTime    @updatedAt
 
   organization   Organization   @relation(fields: [organization_id], references: [id])
   proposal_items ProposalItem[]
 
+  @@unique([organization_id, bling_id])
   @@index([organization_id])
   @@map("products")
 }

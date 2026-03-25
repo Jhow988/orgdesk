@@ -340,6 +340,80 @@ export async function syncContasReceber(orgId: string, filters: ReceivableFilter
   return result
 }
 
+// ─── Products sync ───────────────────────────────────────────────────────────
+
+interface BlingProduto {
+  id:           number
+  nome:         string
+  codigo?:      string
+  descricao?:   string
+  tipo?:        string   // 'P' = Produto, 'S' = Serviço, 'C' = Componente
+  unidade?:     string
+  preco?:       number
+  situacao?:    string   // 'A' = Ativo, 'I' = Inativo
+}
+
+export async function syncProdutos(orgId: string): Promise<SyncResult> {
+  const accessToken = await getAccessToken(orgId)
+  const result: SyncResult = { upserted: 0, skipped: 0, errors: 0 }
+  let page = 1
+
+  while (true) {
+    const res = await fetch(
+      `${BLING_API}/produtos?pagina=${page}&limite=100`,
+      { headers: { Authorization: `Bearer ${accessToken}`, Accept: 'application/json' } }
+    )
+    if (!res.ok) throw new Error(`Bling produtos: ${res.status} ${await res.text()}`)
+
+    const body = (await res.json()) as { data?: BlingProduto[] | { data: BlingProduto[] } }
+    const items: BlingProduto[] = Array.isArray(body.data)
+      ? body.data
+      : ((body.data as any)?.data ?? [])
+
+    if (!items.length) break
+
+    for (const item of items) {
+      try {
+        const blingId   = String(item.id)
+        const tipo      = (item.tipo ?? 'S').toUpperCase()
+        const type      = tipo === 'P' || tipo === 'C' ? 'PRODUCT' : 'SERVICE'
+        const price     = item.preco ?? 0
+        const is_active = item.situacao !== 'I'
+
+        await adminPrisma.product.upsert({
+          where:  { organization_id_bling_id: { organization_id: orgId, bling_id: blingId } },
+          create: {
+            organization_id: orgId,
+            bling_id:        blingId,
+            name:            item.nome,
+            description:     item.descricao  ?? null,
+            unit:            item.unidade    ?? 'un',
+            price,
+            type:            type as any,
+            is_active,
+          },
+          update: {
+            name:        item.nome,
+            description: item.descricao ?? null,
+            unit:        item.unidade   ?? 'un',
+            price,
+            type:        type as any,
+            is_active,
+          },
+        })
+        result.upserted++
+      } catch {
+        result.errors++
+      }
+    }
+
+    if (items.length < 100) break
+    page++
+  }
+
+  return result
+}
+
 // ─── Update contact in Bling ──────────────────────────────────────────────────
 
 export interface BlingContactUpdate {

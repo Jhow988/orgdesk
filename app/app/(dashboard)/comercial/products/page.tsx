@@ -1,17 +1,24 @@
 import { auth } from '@/auth'
-import { prisma } from '@/lib/prisma'
+import { prisma, adminPrisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { toggleProductAction } from '@/app/actions/products'
+import { ImportBlingProductsButton } from './_components/ImportBlingProductsButton'
 
 export default async function ProductsPage() {
   const session = await auth()
   if (!session?.user?.orgId) redirect('/dashboard')
 
-  const products = await prisma.product.findMany({
-    where: { organization_id: session.user.orgId },
-    orderBy: { name: 'asc' },
-  })
+  const orgId = session.user.orgId
+
+  const [products, blingConnected] = await Promise.all([
+    prisma.product.findMany({
+      where: { organization_id: orgId },
+      orderBy: { name: 'asc' },
+    }),
+    adminPrisma.blingIntegration.findUnique({ where: { organization_id: orgId }, select: { id: true } })
+      .then(r => !!r),
+  ])
 
   return (
     <div className="p-6">
@@ -20,10 +27,13 @@ export default async function ProductsPage() {
           <h1 className="text-xl font-semibold text-zinc-100">Produtos e Serviços</h1>
           <p className="mt-1 text-sm text-zinc-500">{products.length} item{products.length !== 1 ? 's' : ''} cadastrado{products.length !== 1 ? 's' : ''}</p>
         </div>
-        <Link href="/comercial/products/new"
-          className="rounded-md bg-white/[0.06] border border-white/[0.08] px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-white/10 transition-colors">
-          + Novo item
-        </Link>
+        <div className="flex items-center gap-2">
+          {blingConnected && <ImportBlingProductsButton />}
+          <Link href="/comercial/products/new"
+            className="rounded-md bg-white/[0.06] border border-white/[0.08] px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-white/10 transition-colors">
+            + Novo item
+          </Link>
+        </div>
       </div>
 
       <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] overflow-hidden">

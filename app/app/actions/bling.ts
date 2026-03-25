@@ -2,7 +2,7 @@
 
 import { auth } from '@/auth'
 import { adminPrisma } from '@/lib/prisma'
-import { syncContatos, syncContasReceber, getBlingAuthUrl, updateContatoBling, type ReceivableFilters } from '@/lib/bling'
+import { syncContatos, syncContasReceber, syncProdutos, getBlingAuthUrl, updateContatoBling, type ReceivableFilters } from '@/lib/bling'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
@@ -106,6 +106,22 @@ export async function updateClientAction(
   }
 
   return {}
+}
+
+export async function syncProductsAction(): Promise<{
+  upserted?: number
+  skipped?:  number
+  errors?:   number
+  error?:    string
+}> {
+  const orgId = await requireOrg()
+  try {
+    const result = await syncProdutos(orgId)
+    revalidatePath('/comercial/products')
+    return result
+  } catch (e: unknown) {
+    return { error: e instanceof Error ? e.message : 'Erro desconhecido' }
+  }
 }
 
 export async function disconnectBlingAction(): Promise<{ error?: string }> {
