@@ -2,11 +2,14 @@ import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
 import { logoutAction } from '@/app/actions/auth'
 import { SidebarNav } from './_components/SidebarNav'
+import { getMyModuleAccessAction } from '@/app/actions/permissions'
 import { LogOut } from 'lucide-react'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
   if (!session?.user) redirect('/login')
+
+  const moduleAccess = await getMyModuleAccessAction()
 
   return (
     <div className="flex h-full min-h-screen bg-[#0f1117] text-zinc-100">
@@ -20,7 +23,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <span className="text-sm font-semibold text-zinc-100 tracking-tight">OrgDesk</span>
         </div>
 
-        <SidebarNav userRole={session.user.role} />
+        <SidebarNav userRole={session.user.role} moduleAccess={moduleAccess} />
 
         {/* User footer */}
         <div className="border-t border-white/[0.06] p-3">

@@ -8,12 +8,14 @@ import {
   UserCog, FileCheck, FileSignature, Briefcase, Shield,
   Settings, MapPin, Send, SendHorizonal, Mail,
 } from 'lucide-react'
+import type { AccessLevel } from '@/lib/modules'
 
 interface NavItem {
-  href: string
-  label: string
-  icon: React.ElementType
-  roles?: string[]
+  href:   string
+  label:  string
+  icon:   React.ElementType
+  roles?:  string[]   // restrict by role
+  module?: string     // restrict by module access
 }
 
 interface NavSection {
@@ -25,50 +27,50 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: '',
     items: [
-      { href: '/dashboard',    label: 'Visão Geral',   icon: LayoutDashboard },
-      { href: '/organizations', label: 'Organizações', icon: Building2, roles: ['SUPER_ADMIN'] },
+      { href: '/dashboard',     label: 'Visão Geral',   icon: LayoutDashboard },
+      { href: '/organizations', label: 'Organizações',  icon: Building2, roles: ['SUPER_ADMIN'] },
     ],
   },
   {
     label: 'Cadastro',
     items: [
-      { href: '/clients',            label: 'Clientes',          icon: Users },
-      { href: '/comercial/products', label: 'Produtos/Serviços', icon: Package },
-      { href: '/users',              label: 'Usuários',          icon: UserCog },
+      { href: '/clients',            label: 'Clientes',          icon: Users,         module: 'clients' },
+      { href: '/comercial/products', label: 'Produtos/Serviços', icon: Package,       module: 'products' },
+      { href: '/users',              label: 'Usuários',          icon: UserCog,       module: 'users' },
     ],
   },
   {
     label: 'Vendas',
     items: [
-      { href: '/comercial/proposals', label: 'Propostas', icon: FileCheck },
-      { href: '/comercial/contracts', label: 'Contratos', icon: FileSignature },
-      { href: '/comercial/crm',       label: 'CRM',       icon: Briefcase },
+      { href: '/comercial/proposals', label: 'Propostas', icon: FileCheck,    module: 'proposals' },
+      { href: '/comercial/contracts', label: 'Contratos', icon: FileSignature, module: 'contracts' },
+      { href: '/comercial/crm',       label: 'CRM',       icon: Briefcase,    module: 'crm' },
     ],
   },
   {
     label: 'Financeiro',
     items: [
-      { href: '/financeiro/enviar-cobranca', label: 'Enviar Cobrança',   icon: SendHorizonal },
-      { href: '/campaigns',                  label: 'Campanhas',         icon: Megaphone },
-      { href: '/invoices',                   label: 'Contas a Receber',  icon: Receipt },
-      { href: '/financeiro/rastreamento',    label: 'Rastreamento',      icon: MapPin },
-      { href: '/financeiro/log-envios',      label: 'Log de Envios',     icon: Send },
-      { href: '/financeiro/relatorios',      label: 'Relatórios',        icon: BarChart2 },
+      { href: '/financeiro/enviar-cobranca', label: 'Enviar Cobrança',  icon: SendHorizonal, module: 'cobranca' },
+      { href: '/campaigns',                  label: 'Campanhas',        icon: Megaphone,     module: 'campaigns' },
+      { href: '/invoices',                   label: 'Contas a Receber', icon: Receipt,       module: 'invoices' },
+      { href: '/financeiro/rastreamento',    label: 'Rastreamento',     icon: MapPin,        module: 'rastreamento' },
+      { href: '/financeiro/log-envios',      label: 'Log de Envios',    icon: Send,          module: 'log_envios' },
+      { href: '/financeiro/relatorios',      label: 'Relatórios',       icon: BarChart2,     module: 'fin_relatorios' },
     ],
   },
   {
     label: 'Suporte',
     items: [
-      { href: '/tickets',            label: 'Chamados',   icon: MessageSquare },
-      { href: '/tickets/relatorios', label: 'Relatórios', icon: BarChart2 },
+      { href: '/tickets',            label: 'Chamados',   icon: MessageSquare, module: 'tickets' },
+      { href: '/tickets/relatorios', label: 'Relatórios', icon: BarChart2,     module: 'tickets_relatorios' },
     ],
   },
   {
     label: 'Configurações',
     items: [
-      { href: '/settings/permissions', label: 'Permissões',       icon: Shield },
-      { href: '/settings/company',     label: 'Dados da empresa', icon: Settings },
-      { href: '/settings/email',       label: 'Perfil de E-mail', icon: Mail },
+      { href: '/settings/permissions', label: 'Permissões',       icon: Shield,   roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
+      { href: '/settings/company',     label: 'Dados da empresa', icon: Settings, module: 'settings_company' },
+      { href: '/settings/email',       label: 'Perfil de E-mail', icon: Mail,     module: 'settings_email' },
     ],
   },
 ]
@@ -97,11 +99,23 @@ function NavItem({ item }: { item: NavItem }) {
   )
 }
 
-export function SidebarNav({ userRole }: { userRole: string }) {
+export function SidebarNav({
+  userRole,
+  moduleAccess,
+}: {
+  userRole:    string
+  moduleAccess: Record<string, AccessLevel>
+}) {
   return (
     <nav className="flex-1 overflow-y-auto py-2 px-2">
       {NAV_SECTIONS.map((section, i) => {
-        const visibleItems = section.items.filter(item => !item.roles || item.roles.includes(userRole))
+        const visibleItems = section.items.filter(item => {
+          // Role restriction
+          if (item.roles && !item.roles.includes(userRole)) return false
+          // Module access restriction (hide if NONE)
+          if (item.module && moduleAccess[item.module] === 'NONE') return false
+          return true
+        })
         if (visibleItems.length === 0) return null
 
         return (

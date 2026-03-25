@@ -94,6 +94,14 @@ enum PixStatus {
   CANCELLED
 }
 
+enum AccessLevel {
+  NONE
+  READ
+  EDIT
+  CREATE
+  FULL
+}
+
 enum SubscriptionStatus {
   TRIAL
   ACTIVE
@@ -245,12 +253,27 @@ model Membership {
   accepted_at     DateTime?
   created_at      DateTime @default(now())
 
-  user         User         @relation(fields: [user_id], references: [id])
-  organization Organization @relation(fields: [organization_id], references: [id])
+  user         User               @relation(fields: [user_id], references: [id])
+  organization Organization       @relation(fields: [organization_id], references: [id])
+  permissions  MemberPermission[]
 
   @@unique([user_id, organization_id])
   @@index([organization_id])
   @@map("memberships")
+}
+
+model MemberPermission {
+  id            String      @id @default(cuid())
+  membership_id String
+  module        String
+  access        AccessLevel @default(READ)
+  created_at    DateTime    @default(now())
+  updated_at    DateTime    @updatedAt
+
+  membership Membership @relation(fields: [membership_id], references: [id], onDelete: Cascade)
+
+  @@unique([membership_id, module])
+  @@map("member_permissions")
 }
 
 model Client {
