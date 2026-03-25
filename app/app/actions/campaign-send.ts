@@ -94,8 +94,8 @@ async function sendEmail(opts: {
   portalUrl:       string
   templateSubject: string
   templateBody:    string
-  nfBuffer:        Buffer
-  nfFilename:      string
+  nfBuffer?:       Buffer
+  nfFilename?:     string
   boletoBuffer?:   Buffer
   boletoFilename?: string
   pixelId:         string
@@ -129,9 +129,10 @@ async function sendEmail(opts: {
     .replace(/\{mes_ano\}/g,      opts.mesAno)
     .replace(/\{link_portal\}/g,  opts.portalUrl)
 
-  const attachments: any[] = [
-    { filename: opts.nfFilename, content: opts.nfBuffer, contentType: 'application/pdf' },
-  ]
+  const attachments: any[] = []
+  if (opts.nfBuffer) {
+    attachments.push({ filename: opts.nfFilename, content: opts.nfBuffer, contentType: 'application/pdf' })
+  }
   if (opts.boletoBuffer) {
     attachments.push({ filename: opts.boletoFilename, content: opts.boletoBuffer, contentType: 'application/pdf' })
   }
@@ -151,8 +152,9 @@ async function sendEmail(opts: {
 import { DEFAULT_SUBJECT, DEFAULT_BODY } from './email-templates-defaults'
 
 export async function enviarSendsAction(
-  sendIds:    string[],
-  templateId: string | null = null,
+  sendIds:         string[],
+  templateId:      string | null = null,
+  withAttachments: boolean = true,
 ): Promise<{ ok: boolean; error?: string; count?: number }> {
   const session = await auth()
   if (!session?.user?.orgId) return { ok: false, error: 'Não autenticado.' }
@@ -195,27 +197,29 @@ export async function enviarSendsAction(
     : []
   const portalTokenMap = new Map(tokenRows.map(r => [r.cnpj, r.portal_token]))
 
-  // Group sends by campaign to fetch PDFs once per campaign
+  // Group sends by campaign to fetch PDFs once per campaign (skip when no attachments)
   const campaignBuffers = new Map<string, { nf: Buffer; boleto?: Buffer }>()
 
-  for (const send of sends) {
-    const campId = send.campaign_id
-    if (!campaignBuffers.has(campId)) {
-      const nfBuffer = send.campaign.pdf_nf_key
-        ? await fetchPdfBuffer(send.campaign.pdf_nf_key)
-        : null
-      const boletoBuffer = send.campaign.pdf_boleto_key
-        ? await fetchPdfBuffer(send.campaign.pdf_boleto_key).catch(() => undefined)
-        : undefined
-      if (nfBuffer) campaignBuffers.set(campId, { nf: nfBuffer, boleto: boletoBuffer })
+  if (withAttachments) {
+    for (const send of sends) {
+      const campId = send.campaign_id
+      if (!campaignBuffers.has(campId)) {
+        const nfBuffer = send.campaign.pdf_nf_key
+          ? await fetchPdfBuffer(send.campaign.pdf_nf_key)
+          : null
+        const boletoBuffer = send.campaign.pdf_boleto_key
+          ? await fetchPdfBuffer(send.campaign.pdf_boleto_key).catch(() => undefined)
+          : undefined
+        if (nfBuffer) campaignBuffers.set(campId, { nf: nfBuffer, boleto: boletoBuffer })
+      }
     }
   }
 
   let successCount = 0
 
   for (const send of sends) {
-    const buffers = campaignBuffers.get(send.campaign_id)
-    if (!buffers) {
+    const buffers = withAttachments ? campaignBuffers.get(send.campaign_id) : undefined
+    if (withAttachments && !buffers) {
       await prisma.campaignSend.update({
         where: { id: send.id },
         data: { status: 'FAILED', error_msg: 'PDF da campanha não encontrado.' },
@@ -232,12 +236,12 @@ export async function enviarSendsAction(
     }
 
     try {
-      // Extract client-specific PDF pages
-      const nfBuffer = send.nf_pages.length > 0
-        ? await extractPages(buffers.nf, send.nf_pages)
-        : buffers.nf
+      // Extract client-specific PDF pages (only when attachments enabled)
+      const nfBuffer = (withAttachments && buffers)
+        ? (send.nf_pages.length > 0 ? await extractPages(buffers.nf, send.nf_pages) : buffers.nf)
+        : undefined
 
-      const boletoBuffer = (send.boleto_pages.length > 0 && buffers.boleto)
+      const boletoBuffer = (withAttachments && buffers && send.boleto_pages.length > 0 && buffers.boleto)
         ? await extractPages(buffers.boleto, send.boleto_pages)
         : undefined
 
@@ -255,7 +259,7 @@ export async function enviarSendsAction(
         templateSubject,
         templateBody,
         nfBuffer,
-        nfFilename:      `NF_${send.client_cnpj}_${mesSlug}.pdf`,
+        nfFilename:      nfBuffer ? `NF_${send.client_cnpj}_${mesSlug}.pdf` : undefined,
         boletoBuffer,
         boletoFilename:  boletoBuffer ? `Boleto_${send.client_cnpj}_${mesSlug}.pdf` : undefined,
         pixelId,

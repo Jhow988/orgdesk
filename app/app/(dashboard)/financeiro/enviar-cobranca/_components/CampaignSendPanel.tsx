@@ -3,7 +3,7 @@
 import { useState, useMemo, useTransition } from 'react'
 import { enviarSendsAction } from '@/app/actions/campaign-send'
 import { useRouter } from 'next/navigation'
-import { Search, Send, X, RefreshCw, ChevronLeft, ChevronRight, FileText, Mail } from 'lucide-react'
+import { Search, Send, X, RefreshCw, ChevronLeft, ChevronRight, FileText, Mail, Paperclip } from 'lucide-react'
 import type { EmailTemplateRow } from '@/app/actions/email-templates'
 
 type SendStatus = 'PENDING' | 'SENT' | 'FAILED' | 'NO_EMAIL' | 'NO_CADASTRO' | 'SIMULATED'
@@ -77,7 +77,8 @@ export function CampaignSendPanel({ campaigns, defaultCampaignId, templates }: P
   const [selected,     setSelected]     = useState<Set<string>>(new Set())
   const [toast,        setToast]        = useState<string | null>(null)
   const [page,         setPage]         = useState(1)
-  const [templateId,   setTemplateId]   = useState<string | null>(templates[0]?.id ?? null)
+  const [templateId,      setTemplateId]      = useState<string | null>(templates[0]?.id ?? null)
+  const [withAttachments, setWithAttachments] = useState(true)
 
   const campaign = campaigns.find(c => c.id === campaignId)
   const sends    = campaign?.sends ?? []
@@ -132,7 +133,7 @@ export function CampaignSendPanel({ campaigns, defaultCampaignId, templates }: P
 
   async function handleSend(ids: string[]) {
     startTransition(async () => {
-      const res = await enviarSendsAction(ids, templateId)
+      const res = await enviarSendsAction(ids, templateId, withAttachments)
       if (res.ok) {
         showToast(`${res.count} e-mail${res.count !== 1 ? 's' : ''} enviado${res.count !== 1 ? 's' : ''}!`)
         setSelected(new Set())
@@ -180,6 +181,18 @@ export function CampaignSendPanel({ campaigns, defaultCampaignId, templates }: P
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* Anexos toggle */}
+          <label className="flex items-center gap-1.5 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={withAttachments}
+              onChange={e => setWithAttachments(e.target.checked)}
+              className="accent-indigo-500"
+            />
+            <Paperclip size={12} className="text-zinc-500" />
+            <span className="text-xs text-zinc-400">Incluir anexos</span>
+          </label>
+
           {templates.length > 0 && (
             <div className="flex items-center gap-1.5">
               <Mail size={12} className="text-zinc-500 flex-shrink-0" />
