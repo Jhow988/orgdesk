@@ -160,7 +160,7 @@ model Organization {
   tickets        Ticket[]
   notifications  Notification[]
   activity_log   ActivityLog[]
-  email_template EmailTemplate?
+  email_templates EmailTemplate[]
   webhook_events WebhookEvent[]
   products       Product[]
   proposals      Proposal[]
