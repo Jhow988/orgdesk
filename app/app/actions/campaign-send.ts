@@ -40,27 +40,30 @@ async function extractPages(pdfBuffer: Buffer, pages: number[]): Promise<Buffer>
 
 // ─── Email ───────────────────────────────────────────────────────────────────
 
-function buildEmailHtml(nome: string, mesAno: string, temBoleto: boolean, pixelUrl: string): string {
-  const corpo = `Prezado(a) ${nome},
+function bodyToHtmlParagraphs(text: string): string {
+  return text
+    .split(/\n\n+/)
+    .map(block => {
+      const lines = block
+        .split('\n')
+        .map(l => l.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'))
+        .join('<br>')
+      return `<p style="margin:0 0 12px 0">${lines}</p>`
+    })
+    .join('')
+}
 
-Segue em anexo sua Nota Fiscal referente ao período ${mesAno}.${temBoleto ? '\nCaso esteja cadastrado, segue em anexo seu boleto referente ao mesmo mês.' : ''}
+function buildEmailHtmlFromTemplate(
+  templateBody: string,
+  vars: { nome_cliente: string; mes_ano: string; link_portal: string },
+  pixelUrl: string,
+): string {
+  const rendered = templateBody
+    .replace(/\{nome_cliente\}/g, vars.nome_cliente)
+    .replace(/\{mes_ano\}/g,      vars.mes_ano)
+    .replace(/\{link_portal\}/g,  vars.link_portal)
 
-A partir do mês de março de 2026, todos os boletos não terão acréscimos de juros, caso venham a passar a data de vencimento. Entendemos que imprevistos podem acontecer e acreditamos assim melhorar ainda mais nossa parceria.
-
-Se desejar cadastrar nosso PIX para futuros pagamentos, seguem os dados:
-
-BANCO INTER
-ALLAN CORREA DA SILVA
-PIX/CNPJ: 24.347.456/0001-90
-
-Em caso de dúvidas, entre em contato conosco.
-
-Atenciosamente,
-Jhonatan Oliveira
-WhatsApp: (12) 98868-7056
-Departamento Financeiro
-Syall Soluções
-financeiro@syall.com.br`
+  const bodyHtml = bodyToHtmlParagraphs(rendered)
 
   return `<!DOCTYPE html>
 <html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -73,29 +76,10 @@ financeiro@syall.com.br`
     <p style="margin:3px 0 0;color:#93adc8;font-size:12px">Departamento Financeiro</p>
   </td></tr>
   <tr><td style="padding:28px 32px;color:#374151;font-size:14px;line-height:1.7">
-    <p style="margin:0 0 12px 0">Prezado(a) <strong>${nome}</strong>,</p>
-    <p style="margin:0 0 12px 0">Segue em anexo sua Nota Fiscal referente ao período <strong>${mesAno}</strong>.</p>
-    ${temBoleto ? '<p style="margin:0 0 12px 0">Segue em anexo também o boleto referente ao mesmo mês.</p>' : ''}
-    <p style="margin:0 0 12px 0">A partir do mês de março de 2026, todos os boletos não terão acréscimos de juros, caso venham a passar a data de vencimento. Entendemos que imprevistos podem acontecer e acreditamos assim melhorar ainda mais nossa parceria.</p>
-    <div style="margin:16px 0;padding:14px 18px;background:#f0f9ff;border-left:4px solid #0ea5e9;border-radius:6px;font-size:13px;line-height:1.8;color:#0c4a6e">
-      <strong>Dados para pagamento via PIX:</strong><br>
-      BANCO INTER<br>
-      ALLAN CORREA DA SILVA<br>
-      <span style="font-family:monospace;font-size:14px;font-weight:700;color:#0369a1">PIX/CNPJ: 24.347.456/0001-90</span>
-    </div>
-    ${temBoleto ? '<div style="margin:16px 0;padding:12px 16px;background:#f0fdf4;border-left:4px solid #16a34a;border-radius:6px;font-size:13px;color:#14532d">📎 <strong>Boleto do mês também anexado neste email.</strong></div>' : ''}
-    <p style="margin:0 0 4px 0">Em caso de dúvidas, entre em contato conosco.</p>
-    <div style="margin-top:24px;padding-top:16px;border-top:1px solid #e5e7eb;font-size:13px;color:#6b7280;line-height:1.9">
-      <span style="color:#374151;font-weight:600">Atenciosamente,</span><br>
-      <span style="color:#111827;font-size:14px;font-weight:700">Jhonatan Oliveira</span><br>
-      📱 WhatsApp: (12) 98868-7056<br>
-      Departamento Financeiro<br>
-      <span style="color:#374151;font-weight:600">Syall Soluções</span><br>
-      <a href="mailto:financeiro@syall.com.br" style="color:#2563eb;text-decoration:none">financeiro@syall.com.br</a>
-    </div>
+    ${bodyHtml}
   </td></tr>
   <tr><td style="background:#f9fafb;padding:14px 32px;border-top:1px solid #e5e7eb;font-size:11px;color:#9ca3af;text-align:center">
-    Este email foi gerado automaticamente pelo sistema OrgDesk.
+    Este e-mail foi gerado automaticamente pelo sistema OrgDesk.
   </td></tr>
 </table>
 </td></tr></table>
@@ -104,51 +88,71 @@ financeiro@syall.com.br`
 }
 
 async function sendEmail(opts: {
-  to: string[]
-  nome: string
-  mesAno: string
-  nfBuffer: Buffer
-  nfFilename: string
-  boletoBuffer?: Buffer
+  to:              string[]
+  nome:            string
+  mesAno:          string
+  portalUrl:       string
+  templateSubject: string
+  templateBody:    string
+  nfBuffer:        Buffer
+  nfFilename:      string
+  boletoBuffer?:   Buffer
   boletoFilename?: string
-  pixelId: string
+  pixelId:         string
 }) {
   const nodemailer = require('nodemailer')
   const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST!,
-    port: parseInt(process.env.SMTP_PORT ?? '465'),
+    host:   process.env.SMTP_HOST!,
+    port:   parseInt(process.env.SMTP_PORT ?? '465'),
     secure: (process.env.SMTP_PORT ?? '465') === '465',
-    auth: {
-      user: process.env.SMTP_USER!,
-      pass: process.env.SMTP_PASS!,
-    },
+    auth: { user: process.env.SMTP_USER!, pass: process.env.SMTP_PASS! },
   })
 
-  const baseUrl = process.env.NEXTAUTH_URL ?? 'https://orgdesk.com.br'
+  const baseUrl  = process.env.NEXTAUTH_URL ?? 'https://orgdesk.com.br'
   const pixelUrl = `${baseUrl}/api/track/${opts.pixelId}`
-  const temBoleto = !!opts.boletoBuffer
+
+  // Replace variables in subject and body
+  const subject = opts.templateSubject
+    .replace(/\{nome_cliente\}/g, opts.nome)
+    .replace(/\{mes_ano\}/g,      opts.mesAno)
+    .replace(/\{link_portal\}/g,  opts.portalUrl)
+
+  const html = buildEmailHtmlFromTemplate(
+    opts.templateBody,
+    { nome_cliente: opts.nome, mes_ano: opts.mesAno, link_portal: opts.portalUrl },
+    pixelUrl,
+  )
+
+  // Plain-text fallback
+  const text = opts.templateBody
+    .replace(/\{nome_cliente\}/g, opts.nome)
+    .replace(/\{mes_ano\}/g,      opts.mesAno)
+    .replace(/\{link_portal\}/g,  opts.portalUrl)
 
   const attachments: any[] = [
     { filename: opts.nfFilename, content: opts.nfBuffer, contentType: 'application/pdf' },
   ]
-  if (temBoleto && opts.boletoBuffer) {
+  if (opts.boletoBuffer) {
     attachments.push({ filename: opts.boletoFilename, content: opts.boletoBuffer, contentType: 'application/pdf' })
   }
 
   await transporter.sendMail({
     from: `"Syall Soluções - Financeiro" <${process.env.SMTP_USER}>`,
-    to: opts.to.join(', '),
-    subject: `Nota Fiscal - ${opts.mesAno}`,
-    text: `Prezado(a) ${opts.nome},\n\nSegue em anexo sua Nota Fiscal referente ao período ${opts.mesAno}.\n\nAtenciosamente,\nJhonatan Oliveira\nDepartamento Financeiro - Syall Soluções`,
-    html: buildEmailHtml(opts.nome, opts.mesAno, temBoleto, pixelUrl),
+    to:   opts.to.join(', '),
+    subject,
+    text,
+    html,
     attachments,
   })
 }
 
 // ─── Main action ──────────────────────────────────────────────────────────────
 
+import { DEFAULT_SUBJECT, DEFAULT_BODY } from './email-templates'
+
 export async function enviarSendsAction(
-  sendIds: string[]
+  sendIds:    string[],
+  templateId: string | null = null,
 ): Promise<{ ok: boolean; error?: string; count?: number }> {
   const session = await auth()
   if (!session?.user?.orgId) return { ok: false, error: 'Não autenticado.' }
@@ -167,6 +171,29 @@ export async function enviarSendsAction(
   })
 
   if (!sends.length) return { ok: false, error: 'Nenhum registro pendente encontrado.' }
+
+  // Fetch email template (from DB or use default)
+  let templateSubject = DEFAULT_SUBJECT
+  let templateBody    = DEFAULT_BODY
+  if (templateId) {
+    const tpl = await prisma.emailTemplate.findFirst({
+      where: { id: templateId, organization_id: session.user.orgId },
+    })
+    if (tpl) { templateSubject = tpl.subject; templateBody = tpl.body }
+  }
+
+  // Pre-fetch portal tokens for all clients in this batch
+  const cnpjs = [...new Set(sends.map(s => s.client_cnpj))]
+  const baseUrl = process.env.NEXTAUTH_URL ?? 'https://orgdesk.com.br'
+  type TokenRow = { cnpj: string; portal_token: string | null }
+  const tokenRows = cnpjs.length > 0
+    ? await prisma.$queryRaw<TokenRow[]>`
+        SELECT cnpj, portal_token FROM clients
+        WHERE organization_id = ${session.user.orgId}
+          AND cnpj = ANY(${cnpjs}::text[])
+      `
+    : []
+  const portalTokenMap = new Map(tokenRows.map(r => [r.cnpj, r.portal_token]))
 
   // Group sends by campaign to fetch PDFs once per campaign
   const campaignBuffers = new Map<string, { nf: Buffer; boleto?: Buffer }>()
@@ -214,18 +241,23 @@ export async function enviarSendsAction(
         ? await extractPages(buffers.boleto, send.boleto_pages)
         : undefined
 
-      const mesAno = send.campaign.label // e.g. "03/2026"
-      const mesSlug = send.campaign.month_year.replace('-', '') // e.g. "202603"
+      const mesAno  = send.campaign.label
+      const mesSlug = send.campaign.month_year.replace('-', '')
       const pixelId = crypto.randomBytes(12).toString('base64url')
+      const token   = portalTokenMap.get(send.client_cnpj)
+      const portalUrl = token ? `${baseUrl}/c/${token}` : baseUrl
 
       await sendEmail({
-        to: send.emails,
-        nome: send.client_name,
+        to:              send.emails,
+        nome:            send.client_name,
         mesAno,
+        portalUrl,
+        templateSubject,
+        templateBody,
         nfBuffer,
-        nfFilename: `NF_${send.client_cnpj}_${mesSlug}.pdf`,
+        nfFilename:      `NF_${send.client_cnpj}_${mesSlug}.pdf`,
         boletoBuffer,
-        boletoFilename: boletoBuffer ? `Boleto_${send.client_cnpj}_${mesSlug}.pdf` : undefined,
+        boletoFilename:  boletoBuffer ? `Boleto_${send.client_cnpj}_${mesSlug}.pdf` : undefined,
         pixelId,
       })
 

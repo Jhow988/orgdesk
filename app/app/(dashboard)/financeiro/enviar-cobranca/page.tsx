@@ -2,6 +2,7 @@ import { auth } from '@/auth'
 import { adminPrisma as prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import { CampaignSendPanel } from './_components/CampaignSendPanel'
+import { listEmailTemplatesAction } from '@/app/actions/email-templates'
 
 export default async function EnviarCobrancaPage() {
   const session = await auth()
@@ -9,7 +10,7 @@ export default async function EnviarCobrancaPage() {
 
   const orgId = session.user.orgId
 
-  const [campaigns, clients] = await Promise.all([
+  const [campaigns, clients, templates] = await Promise.all([
     prisma.campaign.findMany({
       where:    { organization_id: orgId },
       orderBy:  { created_at: 'desc' },
@@ -27,6 +28,7 @@ export default async function EnviarCobrancaPage() {
       where:  { organization_id: orgId },
       select: { cnpj: true, name: true, email: true, email_nfe: true, email_boleto: true },
     }),
+    listEmailTemplatesAction(),
   ])
 
   // Map CNPJ (digits only) → client record for fast lookup
@@ -76,6 +78,7 @@ export default async function EnviarCobrancaPage() {
       <CampaignSendPanel
         campaigns={serialized as any}
         defaultCampaignId={serialized[0]?.id}
+        templates={templates}
       />
     </div>
   )

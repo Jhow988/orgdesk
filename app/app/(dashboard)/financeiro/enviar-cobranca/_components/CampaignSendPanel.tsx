@@ -3,7 +3,8 @@
 import { useState, useMemo, useTransition } from 'react'
 import { enviarSendsAction } from '@/app/actions/campaign-send'
 import { useRouter } from 'next/navigation'
-import { Search, Send, X, RefreshCw, ChevronLeft, ChevronRight, FileText } from 'lucide-react'
+import { Search, Send, X, RefreshCw, ChevronLeft, ChevronRight, FileText, Mail } from 'lucide-react'
+import type { EmailTemplateRow } from '@/app/actions/email-templates'
 
 type SendStatus = 'PENDING' | 'SENT' | 'FAILED' | 'NO_EMAIL' | 'NO_CADASTRO' | 'SIMULATED'
 
@@ -34,6 +35,7 @@ interface Campaign {
 interface Props {
   campaigns:          Campaign[]
   defaultCampaignId?: string
+  templates:          EmailTemplateRow[]
 }
 
 const STATUS_LABEL: Record<SendStatus, string> = {
@@ -65,16 +67,17 @@ const STATUS_DOT: Record<SendStatus, string> = {
 
 const PAGE_SIZE = 20
 
-export function CampaignSendPanel({ campaigns, defaultCampaignId }: Props) {
+export function CampaignSendPanel({ campaigns, defaultCampaignId, templates }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
-  const [campaignId, setCampaignId]     = useState(defaultCampaignId ?? campaigns[0]?.id ?? '')
-  const [search, setSearch]             = useState('')
+  const [campaignId,   setCampaignId]   = useState(defaultCampaignId ?? campaigns[0]?.id ?? '')
+  const [search,       setSearch]       = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('Todas')
-  const [selected, setSelected]         = useState<Set<string>>(new Set())
-  const [toast, setToast]               = useState<string | null>(null)
-  const [page, setPage]                 = useState(1)
+  const [selected,     setSelected]     = useState<Set<string>>(new Set())
+  const [toast,        setToast]        = useState<string | null>(null)
+  const [page,         setPage]         = useState(1)
+  const [templateId,   setTemplateId]   = useState<string | null>(templates[0]?.id ?? null)
 
   const campaign = campaigns.find(c => c.id === campaignId)
   const sends    = campaign?.sends ?? []
@@ -129,7 +132,7 @@ export function CampaignSendPanel({ campaigns, defaultCampaignId }: Props) {
 
   async function handleSend(ids: string[]) {
     startTransition(async () => {
-      const res = await enviarSendsAction(ids)
+      const res = await enviarSendsAction(ids, templateId)
       if (res.ok) {
         showToast(`${res.count} e-mail${res.count !== 1 ? 's' : ''} enviado${res.count !== 1 ? 's' : ''}!`)
         setSelected(new Set())
@@ -176,15 +179,32 @@ export function CampaignSendPanel({ campaigns, defaultCampaignId }: Props) {
             </p>
           </div>
         </div>
-        <select
-          value={campaignId}
-          onChange={e => { setCampaignId(e.target.value); setSelected(new Set()); setPage(1) }}
-          className="rounded-md border border-white/[0.1] bg-white/[0.06] px-3 py-1.5 text-xs text-zinc-200 focus:outline-none"
-        >
-          {campaigns.map(c => (
-            <option key={c.id} value={c.id}>{c.label}</option>
-          ))}
-        </select>
+        <div className="flex items-center gap-2">
+          {templates.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              <Mail size={12} className="text-zinc-500 flex-shrink-0" />
+              <select
+                value={templateId ?? ''}
+                onChange={e => setTemplateId(e.target.value || null)}
+                className="rounded-md border border-white/[0.08] bg-white/[0.04] px-2.5 py-1.5 text-xs text-zinc-300 focus:outline-none max-w-[160px]"
+                title="Template de e-mail"
+              >
+                {templates.map(t => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          <select
+            value={campaignId}
+            onChange={e => { setCampaignId(e.target.value); setSelected(new Set()); setPage(1) }}
+            className="rounded-md border border-white/[0.1] bg-white/[0.06] px-3 py-1.5 text-xs text-zinc-200 focus:outline-none"
+          >
+            {campaigns.map(c => (
+              <option key={c.id} value={c.id}>{c.label}</option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {/* Stats */}

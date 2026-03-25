@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Building2, Receipt,
   Megaphone, BarChart2, MessageSquare, Users, Package,
   UserCog, FileCheck, FileSignature, Briefcase, Shield,
-  Settings, MapPin, Send, SendHorizonal,
+  Settings, MapPin, Send, SendHorizonal, Mail,
 } from 'lucide-react'
 
 interface NavItem {
@@ -68,6 +68,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: '/settings/permissions', label: 'Permissões',       icon: Shield },
       { href: '/settings/company',     label: 'Dados da empresa', icon: Settings },
+      { href: '/settings/email',       label: 'Perfil de E-mail', icon: Mail },
     ],
   },
 ]

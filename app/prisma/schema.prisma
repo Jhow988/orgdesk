@@ -547,13 +547,16 @@ model ActivityLog {
 
 model EmailTemplate {
   id              String   @id @default(cuid())
-  organization_id String   @unique
-  subject         String   @default("Segue em anexo sua NF e Boleto referente a {{month_year}}")
+  organization_id String
+  name            String
+  subject         String   @default("Nota Fiscal - {mes_ano}")
   body            String   @db.Text
+  created_at      DateTime @default(now())
   updated_at      DateTime @updatedAt
 
   organization Organization @relation(fields: [organization_id], references: [id])
 
+  @@unique([organization_id, name])
   @@map("email_templates")
 }
 
