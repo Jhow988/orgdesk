@@ -60,7 +60,7 @@ function EmailPreview({ subject, body }: { subject: string; body: string }) {
       </div>
 
       {/* Email body */}
-      <div className="flex-1 overflow-y-auto bg-white p-5">
+      <div className="flex-1 overflow-y-auto bg-white p-5 pb-10">
         {/* Header bar */}
         <div className="mb-4 rounded-t-lg bg-[#1a2e4a] px-5 py-3">
           <p className="text-white font-bold text-base">Syall Soluções</p>
