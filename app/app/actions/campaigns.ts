@@ -2,6 +2,7 @@
 
 import { auth } from '@/auth'
 import { adminPrisma as prisma } from '@/lib/prisma'
+import { checkModuleAccess } from './permissions'
 import { uploadFile, deleteFile, buildKey } from '@/lib/storage'
 import { extrairCnpjDaPagina, extrairCnpjBoleto } from '@/lib/pdf-extractor'
 import { revalidatePath } from 'next/cache'
@@ -49,6 +50,8 @@ async function parsePdfPages(buffer: Buffer): Promise<string[]> {
 export type CampaignState = { error?: string } | null
 
 export async function createCampaignAction(prev: CampaignState, formData: FormData): Promise<CampaignState> {
+  const denied = await checkModuleAccess('campaigns', 'CREATE')
+  if (denied) return { error: denied }
   const session = await auth()
   if (!session?.user?.orgId) return { error: 'Não autenticado.' }
 
@@ -245,6 +248,8 @@ export async function previewCampaignAction(campaignId: string): Promise<{
 // ─── activate campaign ───────────────────────────────────────────────────────
 
 export async function activateCampaignAction(campaignId: string): Promise<{ error?: string }> {
+  const denied = await checkModuleAccess('campaigns', 'EDIT')
+  if (denied) return { error: denied }
   const session = await auth()
   if (!session?.user?.orgId) return { error: 'Não autenticado.' }
 
@@ -395,6 +400,8 @@ export async function activateCampaignAction(campaignId: string): Promise<{ erro
 // ─── delete campaign ─────────────────────────────────────────────────────────
 
 export async function deleteCampaignAction(campaignId: string): Promise<{ error?: string }> {
+  const denied = await checkModuleAccess('campaigns', 'FULL')
+  if (denied) return { error: denied }
   const session = await auth()
   if (!session?.user?.orgId) return { error: 'Não autenticado.' }
 

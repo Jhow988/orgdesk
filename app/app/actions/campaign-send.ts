@@ -4,6 +4,7 @@ import { auth } from '@/auth'
 import { adminPrisma as prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import crypto from 'crypto'
+import { checkModuleAccess } from './permissions'
 
 // ─── PDF helpers (lazy to avoid bundling issues) ─────────────────────────────
 
@@ -156,6 +157,8 @@ export async function enviarSendsAction(
   templateId:      string | null = null,
   withAttachments: boolean = true,
 ): Promise<{ ok: boolean; error?: string; count?: number }> {
+  const denied = await checkModuleAccess('cobranca', 'FULL')
+  if (denied) return { ok: false, error: denied }
   const session = await auth()
   if (!session?.user?.orgId) return { ok: false, error: 'Não autenticado.' }
   if (!sendIds.length)        return { ok: false, error: 'Nenhum registro selecionado.' }

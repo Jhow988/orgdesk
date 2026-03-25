@@ -4,12 +4,14 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ContractForm } from '../_components/ContractForm'
 import { createContractAction } from '@/app/actions/contracts'
+import { checkModuleAccess } from '@/app/actions/permissions'
 
 interface Props { searchParams: Promise<{ proposal_id?: string }> }
 
 export default async function NewContractPage({ searchParams }: Props) {
   const session = await auth()
   if (!session?.user?.orgId) redirect('/dashboard')
+  if (await checkModuleAccess('contracts', 'CREATE')) redirect('/comercial/contracts')
 
   const { proposal_id } = await searchParams
 

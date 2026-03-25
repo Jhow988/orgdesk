@@ -4,6 +4,7 @@ import { auth } from '@/auth'
 import { adminPrisma as prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
+import { checkModuleAccess } from './permissions'
 
 async function requireOrg() {
   const session = await auth()
@@ -12,6 +13,8 @@ async function requireOrg() {
 }
 
 export async function createProductAction(_prev: unknown, formData: FormData) {
+  const denied = await checkModuleAccess('products', 'CREATE')
+  if (denied) return { error: denied }
   const orgId = await requireOrg()
 
   const name = (formData.get('name') as string)?.trim()
@@ -34,6 +37,8 @@ export async function createProductAction(_prev: unknown, formData: FormData) {
 }
 
 export async function updateProductAction(id: string, _prev: unknown, formData: FormData) {
+  const denied = await checkModuleAccess('products', 'EDIT')
+  if (denied) return { error: denied }
   const orgId = await requireOrg()
 
   const name = (formData.get('name') as string)?.trim()
@@ -56,6 +61,8 @@ export async function updateProductAction(id: string, _prev: unknown, formData: 
 }
 
 export async function toggleProductAction(id: string, current: boolean) {
+  const denied = await checkModuleAccess('products', 'EDIT')
+  if (denied) return
   const orgId = await requireOrg()
   await prisma.product.updateMany({
     where: { id, organization_id: orgId },

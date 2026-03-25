@@ -4,6 +4,7 @@ import { auth } from '@/auth'
 import { adminPrisma as prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import bcrypt from 'bcryptjs'
+import { checkModuleAccess } from './permissions'
 
 async function requireOrgAdmin() {
   const session = await auth()
@@ -47,6 +48,8 @@ export async function createUserAction(
   password: string,
   role: string,
 ): Promise<{ error?: string }> {
+  const denied = await checkModuleAccess('users', 'CREATE')
+  if (denied) return { error: denied }
   const { orgId } = await requireOrgAdmin()
 
   if (!name.trim())  return { error: 'Nome é obrigatório.' }
@@ -92,6 +95,8 @@ export async function updateUserAction(
   role: string,
   newPassword?: string,
 ): Promise<{ error?: string }> {
+  const denied = await checkModuleAccess('users', 'EDIT')
+  if (denied) return { error: denied }
   const { orgId } = await requireOrgAdmin()
 
   if (!name.trim()) return { error: 'Nome é obrigatório.' }
@@ -121,6 +126,8 @@ export async function updateUserAction(
 }
 
 export async function toggleUserAction(userId: string): Promise<{ error?: string }> {
+  const denied = await checkModuleAccess('users', 'EDIT')
+  if (denied) return { error: denied }
   const { orgId, userId: currentUserId } = await requireOrgAdmin()
 
   if (userId === currentUserId) return { error: 'Você não pode desativar sua própria conta.' }

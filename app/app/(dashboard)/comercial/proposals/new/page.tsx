@@ -4,10 +4,14 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ProposalForm } from '../_components/ProposalForm'
 import { createProposalAction } from '@/app/actions/proposals'
+import { checkModuleAccess } from '@/app/actions/permissions'
 
 export default async function NewProposalPage() {
   const session = await auth()
   if (!session?.user?.orgId) redirect('/dashboard')
+
+  const denied = await checkModuleAccess('proposals', 'CREATE')
+  if (denied) redirect('/comercial/proposals')
 
   const [clients, products] = await Promise.all([
     prisma.client.findMany({

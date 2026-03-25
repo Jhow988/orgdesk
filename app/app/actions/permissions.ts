@@ -3,8 +3,37 @@
 import { auth } from '@/auth'
 import { adminPrisma as prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
-import { buildModuleAccessMap, MODULES } from '@/lib/modules'
+import { buildModuleAccessMap, getEffectiveAccess, hasAccess, MODULES } from '@/lib/modules'
 import type { AccessLevel } from '@/lib/modules'
+
+/**
+ * Checks if the current user has the required access level for a module.
+ * Returns an error string if denied, null if allowed.
+ * ORG_ADMIN / SUPER_ADMIN always pass.
+ */
+export async function checkModuleAccess(
+  module: string,
+  required: AccessLevel,
+): Promise<string | null> {
+  const session = await auth()
+  if (!session?.user?.orgId) return 'Não autenticado.'
+
+  const role = session.user.role
+  if (['SUPER_ADMIN', 'ORG_ADMIN'].includes(role)) return null
+
+  const membership = await prisma.membership.findUnique({
+    where: { user_id_organization_id: { user_id: session.user.id, organization_id: session.user.orgId } },
+    include: { permissions: true },
+  })
+
+  const custom: Record<string, AccessLevel> = {}
+  for (const p of membership?.permissions ?? []) {
+    custom[p.module] = p.access as AccessLevel
+  }
+
+  const effective = getEffectiveAccess(role, module, custom)
+  return hasAccess(effective, required) ? null : 'Sem permissão para esta operação.'
+}
 
 async function requireOrgAdmin() {
   const session = await auth()

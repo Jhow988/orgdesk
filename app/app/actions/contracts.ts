@@ -5,6 +5,7 @@ import { adminPrisma as prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import crypto from 'crypto'
+import { checkModuleAccess } from './permissions'
 
 async function requireOrg() {
   const session = await auth()
@@ -13,6 +14,8 @@ async function requireOrg() {
 }
 
 export async function createContractAction(_prev: unknown, formData: FormData) {
+  const denied = await checkModuleAccess('contracts', 'CREATE')
+  if (denied) return { error: denied }
   const orgId = await requireOrg()
 
   const title = (formData.get('title') as string)?.trim()
@@ -39,6 +42,8 @@ export async function createContractAction(_prev: unknown, formData: FormData) {
 }
 
 export async function sendContractAction(id: string) {
+  const denied = await checkModuleAccess('contracts', 'EDIT')
+  if (denied) return
   const orgId = await requireOrg()
   const token = crypto.randomBytes(32).toString('hex')
 
@@ -59,6 +64,8 @@ export async function signContractAction(id: string, token: string) {
 }
 
 export async function cancelContractAction(id: string) {
+  const denied = await checkModuleAccess('contracts', 'EDIT')
+  if (denied) return
   const orgId = await requireOrg()
   await prisma.contract.updateMany({
     where: { id, organization_id: orgId },

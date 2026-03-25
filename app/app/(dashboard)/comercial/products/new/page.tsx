@@ -3,10 +3,12 @@ import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { ProductForm } from '../_components/ProductForm'
 import { createProductAction } from '@/app/actions/products'
+import { checkModuleAccess } from '@/app/actions/permissions'
 
 export default async function NewProductPage() {
   const session = await auth()
   if (!session?.user?.orgId) redirect('/dashboard')
+  if (await checkModuleAccess('products', 'CREATE')) redirect('/comercial/products')
 
   return (
     <div className="p-6">

@@ -4,6 +4,7 @@ import { auth } from '@/auth'
 import { adminPrisma as prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
+import { checkModuleAccess } from './permissions'
 
 async function requireOrg() {
   const session = await auth()
@@ -31,6 +32,8 @@ function parseItems(formData: FormData) {
 }
 
 export async function createProposalAction(_prev: unknown, formData: FormData) {
+  const denied = await checkModuleAccess('proposals', 'CREATE')
+  if (denied) return { error: denied }
   const orgId = await requireOrg()
 
   const title = (formData.get('title') as string)?.trim()
@@ -68,6 +71,8 @@ export async function createProposalAction(_prev: unknown, formData: FormData) {
 }
 
 export async function updateProposalStatusAction(id: string, status: string) {
+  const denied = await checkModuleAccess('proposals', 'EDIT')
+  if (denied) return
   const orgId = await requireOrg()
   const data: any = { status }
   if (status === 'SENT') data.sent_at = new Date()
