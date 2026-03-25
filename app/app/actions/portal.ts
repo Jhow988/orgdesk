@@ -3,12 +3,12 @@
 import { adminPrisma } from '@/lib/prisma'
 
 interface Send {
-  id:           string
-  campaignId:   string
+  id:            string
+  campaignId:    string
   campaignLabel: string
-  nf_pages:     number[]
-  boleto_pages: number[]
-  sent_at:      string | null
+  nf_pages:      number[]
+  boleto_pages:  number[]
+  sent_at:       string | null
 }
 
 interface PortalData {
@@ -28,24 +28,21 @@ export async function verifyPortalAccessAction(
 ): Promise<{ data?: PortalData; error?: string }> {
   if (!token || !email || !cnpj) return { error: 'Preencha todos os campos.' }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = adminPrisma as any
-
-  const client = await db.client.findUnique({
-    where:  { portal_token: token },
-    select: {
-      id:           true,
-      name:         true,
-      cnpj:         true,
-      email:        true,
-      email_nfe:    true,
-      email_boleto: true,
-    },
-  }) as {
+  // Usa SQL direto para evitar dependência do Prisma Client gerado
+  // (portal_token foi adicionado ao schema após geração inicial do client)
+  type ClientRow = {
     id: string; name: string; cnpj: string;
     email: string | null; email_nfe: string | null; email_boleto: string | null;
-  } | null
+  }
 
+  const rows = await adminPrisma.$queryRaw<ClientRow[]>`
+    SELECT id, name, cnpj, email, email_nfe, email_boleto
+    FROM clients
+    WHERE portal_token = ${token}
+    LIMIT 1
+  `
+
+  const client = rows[0] ?? null
   if (!client) return { error: 'Link inválido ou expirado.' }
 
   // Verifica CNPJ (apenas dígitos)
@@ -55,16 +52,14 @@ export async function verifyPortalAccessAction(
     return { error: 'E-mail ou CNPJ incorreto.' }
   }
 
-  // Coleta todos os e-mails associados a este cliente:
-  // 1. Campos diretos do cadastro
+  // Coleta todos os e-mails: cadastro do cliente + e-mails enviados nas campanhas
   const emailsCadastro = [client.email, client.email_nfe, client.email_boleto]
     .filter(Boolean)
     .map(e => e!.toLowerCase().trim())
 
-  // 2. E-mails armazenados nos envios de campanha (pode ser diferente do cadastro atual)
   const sends = await adminPrisma.campaignSend.findMany({
-    where:   { client_cnpj: cnpjDigits },
-    select:  { emails: true },
+    where:  { client_cnpj: cnpjDigits },
+    select: { emails: true },
   })
   const emailsSends = sends
     .flatMap(s => s.emails as string[])
@@ -72,19 +67,16 @@ export async function verifyPortalAccessAction(
     .filter(Boolean)
 
   const todosEmails = [...new Set([...emailsCadastro, ...emailsSends])]
+  const emailInput  = email.toLowerCase().trim()
 
-  const emailInput = email.toLowerCase().trim()
-
-  // Sempre exige e-mail válido — sem e-mail cadastrado = acesso negado
   if (todosEmails.length === 0 || !todosEmails.includes(emailInput)) {
     return { error: 'E-mail ou CNPJ incorreto.' }
   }
 
-  // Registra acesso ao portal
-  await db.client.update({
-    where: { portal_token: token },
-    data:  { last_portal_access: new Date() },
-  })
+  // Registra acesso ao portal via SQL direto
+  await adminPrisma.$executeRaw`
+    UPDATE clients SET last_portal_access = NOW() WHERE portal_token = ${token}
+  `
 
   // Busca envios com documentos
   const allSends = await adminPrisma.campaignSend.findMany({

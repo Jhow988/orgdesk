@@ -34,13 +34,19 @@ export default async function RastreamentoPage() {
     include: { campaign: { select: { id: true, label: true, month_year: true } } },
   })
 
-  // Collect unique CNPJs to look up client portal tokens
+  // Usa SQL direto para buscar portal_token e last_portal_access
+  // (campos adicionados ao schema após geração inicial do Prisma Client)
   const cnpjs = [...new Set(sends.map(s => s.client_cnpj))]
-  const clients = await prisma.client.findMany({
-    where:  { organization_id: orgId, cnpj: { in: cnpjs } },
-    select: { cnpj: true, name: true, last_portal_access: true, portal_token: true } as any,
-  })
-  const clientMap = new Map((clients as any[]).map((c: any) => [c.cnpj.replace(/\D/g, ''), c]))
+  type ClientPortalRow = { cnpj: string; portal_token: string | null; last_portal_access: Date | null }
+  const clientRows = cnpjs.length > 0
+    ? await prisma.$queryRaw<ClientPortalRow[]>`
+        SELECT cnpj, portal_token, last_portal_access
+        FROM clients
+        WHERE organization_id = ${orgId}
+          AND cnpj = ANY(${cnpjs}::text[])
+      `
+    : []
+  const clientMap = new Map(clientRows.map(c => [c.cnpj.replace(/\D/g, ''), c]))
 
   const rows = sends.map(s => {
     const cnpjDigits    = s.client_cnpj.replace(/\D/g, '')

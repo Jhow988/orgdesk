@@ -35,13 +35,11 @@ export async function GET(
     return NextResponse.json({ error: 'Parâmetros ausentes.' }, { status: 400 })
   }
 
-  // Validate token — look up client
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const db = adminPrisma as any
-  const client = await db.client.findUnique({
-    where:  { portal_token: token },
-    select: { cnpj: true },
-  }) as { cnpj: string } | null
+  // Usa SQL direto para evitar dependência do Prisma Client gerado
+  const rows = await adminPrisma.$queryRaw<{ cnpj: string }[]>`
+    SELECT cnpj FROM clients WHERE portal_token = ${token} LIMIT 1
+  `
+  const client = rows[0] ?? null
   if (!client) return NextResponse.json({ error: 'Token inválido.' }, { status: 401 })
 
   // Fetch campaign (no org restriction needed — token is the auth)
