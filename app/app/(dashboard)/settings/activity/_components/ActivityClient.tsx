@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react'
 import { Activity, Search, Filter } from 'lucide-react'
-import { ACTION_LABELS, ACTION_COLOR, ENTITY_LABELS } from '@/lib/activity'
+import { ACTION_LABELS, ACTION_COLOR, ENTITY_LABELS } from '@/lib/activity-labels'
 import type { ActivityEntry } from '@/app/actions/activity'
 
 interface Props {
