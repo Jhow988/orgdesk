@@ -9,9 +9,13 @@ import { redirect } from 'next/navigation'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
-// Formata 14 dígitos → XX.XXX.XXX/XXXX-XX para busca direta no texto do PDF
-function cnpjToText(cnpj: string): string {
-  return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')
+// Regex flexível que encontra um CNPJ no texto do PDF independente de espaços ou
+// variações de pontuação: aceita XX.XXX.XXX/XXXX-XX e variações com espaços.
+function cnpjRegex(cnpj: string): RegExp {
+  const d = cnpj // 14 dígitos
+  return new RegExp(
+    `${d.slice(0,2)}[.\\s]?${d.slice(2,5)}[.\\s]?${d.slice(5,8)}[/\\s]?${d.slice(8,12)}[-\\s]?${d.slice(12)}`
+  )
 }
 
 function monthYearToLabel(iso: string): string {
@@ -189,9 +193,8 @@ async function buildMatches(campaignId: string, orgId: string): Promise<{
   if (bolPagesTexts.length > 0) {
     for (const cnpj of cnpjNfPages.keys()) {
       if (bolCnpjPage.has(cnpj)) continue
-      const formatted = cnpjToText(cnpj)
       bolPagesTexts.forEach((text, idx) => {
-        if (!bolCnpjPage.has(cnpj) && text.includes(formatted)) {
+        if (!bolCnpjPage.has(cnpj) && cnpjRegex(cnpj).test(text)) {
           bolCnpjPage.set(cnpj, idx + 1)
         }
       })
@@ -317,9 +320,8 @@ export async function activateCampaignAction(campaignId: string): Promise<{ erro
   if (bolPagesTexts.length > 0) {
     for (const cnpj of cnpjPages.keys()) {
       if (bolCnpjPage.has(cnpj)) continue
-      const formatted = cnpjToText(cnpj)
       bolPagesTexts.forEach((text, idx) => {
-        if (!bolCnpjPage.has(cnpj) && text.includes(formatted)) {
+        if (!bolCnpjPage.has(cnpj) && cnpjRegex(cnpj).test(text)) {
           bolCnpjPage.set(cnpj, idx + 1)
         }
       })
