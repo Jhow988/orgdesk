@@ -75,8 +75,8 @@ export async function verifyPortalAccessAction(
 
   const emailInput = email.toLowerCase().trim()
 
-  // Se não há nenhum e-mail cadastrado, aceita qualquer um (token + CNPJ já são suficientes)
-  if (todosEmails.length > 0 && !todosEmails.includes(emailInput)) {
+  // Sempre exige e-mail válido — sem e-mail cadastrado = acesso negado
+  if (todosEmails.length === 0 || !todosEmails.includes(emailInput)) {
     return { error: 'E-mail ou CNPJ incorreto.' }
   }
 
