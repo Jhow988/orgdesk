@@ -148,7 +148,7 @@ async function sendEmail(opts: {
 
 // ─── Main action ──────────────────────────────────────────────────────────────
 
-import { DEFAULT_SUBJECT, DEFAULT_BODY } from './email-templates'
+import { DEFAULT_SUBJECT, DEFAULT_BODY } from './email-templates-defaults'
 
 export async function enviarSendsAction(
   sendIds:    string[],

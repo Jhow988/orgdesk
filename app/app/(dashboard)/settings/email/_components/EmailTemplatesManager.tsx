@@ -5,10 +5,12 @@ import { Plus, Trash2, Save, RotateCcw, Mail, FileText, Eye } from 'lucide-react
 import {
   saveEmailTemplateAction,
   deleteEmailTemplateAction,
+} from '@/app/actions/email-templates'
+import {
   DEFAULT_SUBJECT,
   DEFAULT_BODY,
   type EmailTemplateRow,
-} from '@/app/actions/email-templates'
+} from '@/app/actions/email-templates-defaults'
 
 // ─── Preview ─────────────────────────────────────────────────────────────────
 

@@ -4,7 +4,7 @@ import { auth } from '@/auth'
 import { adminPrisma as prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 
-export { DEFAULT_SUBJECT, DEFAULT_BODY, type EmailTemplateRow } from './email-templates-defaults'
+import { type EmailTemplateRow } from './email-templates-defaults'
 
 export async function listEmailTemplatesAction(): Promise<EmailTemplateRow[]> {
   const session = await auth()
