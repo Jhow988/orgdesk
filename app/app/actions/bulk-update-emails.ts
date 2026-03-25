@@ -281,7 +281,7 @@ export async function bulkUpdateEmailsAction(): Promise<BulkEmailResult | { erro
 
     if (client.bling_id) {
       try {
-        await updateContatoBling(orgId, client.bling_id, { email })
+        await updateContatoBling(orgId, client.bling_id, { name: client.name, email })
       } catch (e) {
         result.blingErrors++
         result.log.push(`⚠ Bling error ${client.name}: ${(e as Error).message}`)

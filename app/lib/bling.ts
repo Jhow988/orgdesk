@@ -363,11 +363,15 @@ export async function updateContatoBling(
   data:    BlingContactUpdate,
 ): Promise<void> {
   const token = await getAccessToken(orgId)
-  const body: Record<string, unknown> = {}
-  if (data.name        !== undefined) body.nome    = data.name
-  if (data.trade_name  !== undefined) body.fantasia = data.trade_name
-  if (data.email       !== undefined) body.email   = data.email
-  if (data.phone       !== undefined) body.fone    = data.phone
+  // PUT replaces the whole resource — tipo and situacao are always required by Bling
+  const body: Record<string, unknown> = {
+    tipo:     'J',  // all clients are CNPJ (juridical)
+    situacao: 'A',  // active
+  }
+  if (data.name        !== undefined) body.nome     = data.name
+  if (data.trade_name  !== undefined) body.fantasia  = data.trade_name
+  if (data.email       !== undefined) body.email    = data.email
+  if (data.phone       !== undefined) body.fone     = data.phone
 
   const hasAddress = [
     data.address_street, data.address_number, data.address_complement,
