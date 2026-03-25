@@ -126,9 +126,9 @@ function TemplateEditor({
   }
 
   return (
-    <div className="grid grid-cols-2 gap-0 h-full">
+    <div className="grid grid-cols-2 gap-0 h-full min-h-0">
       {/* ── Left: Editor ── */}
-      <div className="flex flex-col border-r border-white/[0.08]">
+      <div className="flex flex-col min-h-0 border-r border-white/[0.08]">
         {/* Toolbar */}
         <div className="flex items-center justify-between border-b border-white/[0.08] px-4 py-2.5">
           <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
@@ -231,14 +231,14 @@ function TemplateEditor({
       </div>
 
       {/* ── Right: Preview ── */}
-      <div className="flex flex-col">
+      <div className="flex flex-col min-h-0">
         <div className="flex items-center gap-1.5 border-b border-white/[0.08] px-4 py-2.5">
           <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest text-zinc-500">
             <Eye size={11} /> Preview
           </div>
           <span className="ml-auto text-[10px] text-zinc-700">Atualiza em tempo real</span>
         </div>
-        <div className="flex-1 overflow-hidden bg-zinc-100 rounded-br-xl">
+        <div className="flex-1 min-h-0 overflow-hidden bg-zinc-100 rounded-br-xl">
           <EmailPreview subject={subject} body={body} />
         </div>
       </div>
@@ -314,7 +314,7 @@ export function EmailTemplatesManager({ templates: initial }: { templates: Email
       </div>
 
       {/* ── Main: editor + preview ── */}
-      <div className="flex-1 overflow-hidden">
+      <div className="flex-1 min-h-0 overflow-hidden">
         <TemplateEditor
           key={selected ?? 'new'}
           template={selectedTemplate}
