@@ -18,8 +18,6 @@ const ROLE_LABELS: Record<string, string> = {
   ORG_SUPPORT: 'Suporte',
 }
 
-export type { ROLE_LABELS }
-
 export async function listOrgUsersAction() {
   const session = await auth()
   if (!session?.user?.orgId) return []
