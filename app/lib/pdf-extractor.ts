@@ -5,7 +5,7 @@ function limparCnpj(raw: string): string {
   return raw.replace(/\D/g, '')
 }
 
-export function extrairCnpjDaPagina(texto: string, paginaNum: number): string | null {
+export function extrairCnpjDaPagina(texto: string, _paginaNum: number): string | null {
   const mTomador = texto.match(/TOMADOR\s+DE\s+SERVI[CÇ]OS/i)
   if (!mTomador) return null
 
@@ -45,29 +45,54 @@ export function extrairCnpjDaPagina(texto: string, paginaNum: number): string | 
   return null
 }
 
-export function extrairCnpjBoleto(textoCompleto: string, cnpjsIgnore: string[] = []): string | null {
-  // Localiza bloco "Pagador"
-  const mPagador = textoCompleto.match(/Pagador[:\s]*/i)
-  if (mPagador && mPagador.index !== undefined) {
-    const bloco = textoCompleto.slice(mPagador.index, mPagador.index + 400)
-    const blocoFiltrado = bloco.split(/Benefici[áa]rio/i)[0]
-    const matches = blocoFiltrado.match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/g)
-    if (matches) {
-      for (const raw of matches) {
-        const cnpj = limparCnpj(raw)
-        if (cnpj.length === 14 && !cnpjsIgnore.includes(cnpj)) return cnpj
-      }
-    }
-  }
+// Normaliza texto removendo espaços ao redor de pontuação CNPJ para facilitar o match.
+// Ex: "12 . 345 . 678 / 9012 - 34" → "12.345.678/9012-34"
+function normalizarTexto(texto: string): string {
+  return texto
+    .replace(/(\d)\s*\.\s*(\d)/g, '$1.$2')
+    .replace(/(\d)\s*\/\s*(\d)/g, '$1/$2')
+    .replace(/(\d)\s*-\s*(\d)/g, '$1-$2')
+}
 
-  // Fallback: varre todo o texto
-  const allMatches = textoCompleto.match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/g)
-  if (allMatches) {
-    for (const raw of allMatches) {
+function cnpjsDoBloco(bloco: string, cnpjsIgnore: string[]): string | null {
+  // Tenta formato padrão XX.XXX.XXX/XXXX-XX
+  const matches = bloco.match(/\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/g)
+  if (matches) {
+    for (const raw of matches) {
       const cnpj = limparCnpj(raw)
       if (cnpj.length === 14 && !cnpjsIgnore.includes(cnpj)) return cnpj
     }
   }
-
   return null
+}
+
+export function extrairCnpjBoleto(textoCompleto: string, cnpjsIgnore: string[] = []): string | null {
+  const texto = normalizarTexto(textoCompleto)
+
+  // 1. Bloco "Pagador" (layout padrão FEBRABAN)
+  const mPagador = texto.match(/Pagador[:\s]*/i)
+  if (mPagador?.index !== undefined) {
+    const bloco = texto.slice(mPagador.index, mPagador.index + 500)
+    const result = cnpjsDoBloco(bloco.split(/Benefici[áa]rio|Sacador/i)[0], cnpjsIgnore)
+    if (result) return result
+  }
+
+  // 2. Bloco "Sacado" (layout alternativo usado por muitos bancos)
+  const mSacado = texto.match(/Sacado[:\s]*/i)
+  if (mSacado?.index !== undefined) {
+    const bloco = texto.slice(mSacado.index, mSacado.index + 500)
+    const result = cnpjsDoBloco(bloco.split(/Cedente|Benefici[áa]rio|Sacador|Avalista/i)[0], cnpjsIgnore)
+    if (result) return result
+  }
+
+  // 3. Bloco após "CPF/CNPJ" ou "CNPJ/CPF" (encontrado em alguns layouts)
+  const mCnpjLabel = texto.match(/CPF\s*\/\s*CNPJ|CNPJ\s*\/\s*CPF/i)
+  if (mCnpjLabel?.index !== undefined) {
+    const bloco = texto.slice(mCnpjLabel.index, mCnpjLabel.index + 200)
+    const result = cnpjsDoBloco(bloco, cnpjsIgnore)
+    if (result) return result
+  }
+
+  // 4. Fallback: varre todo o texto (ignora CNPJs da lista de ignore)
+  return cnpjsDoBloco(texto, cnpjsIgnore)
 }
