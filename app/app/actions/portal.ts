@@ -17,6 +17,10 @@ interface PortalData {
   sends:      Send[]
 }
 
+function fmtCnpj(d: string) {
+  return d.replace(/\D/g, '').replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')
+}
+
 export async function verifyPortalAccessAction(
   token: string,
   email: string,
@@ -45,17 +49,34 @@ export async function verifyPortalAccessAction(
   if (!client) return { error: 'Link inválido ou expirado.' }
 
   // Verifica CNPJ (apenas dígitos)
-  const cnpjDigits = cnpj.replace(/\D/g, '')
-  if (client.cnpj.replace(/\D/g, '') !== cnpjDigits) {
+  const cnpjDigits    = cnpj.replace(/\D/g, '')
+  const clientCnpjRaw = client.cnpj.replace(/\D/g, '')
+  if (clientCnpjRaw !== cnpjDigits) {
     return { error: 'E-mail ou CNPJ incorreto.' }
   }
 
-  // Verifica e-mail (qualquer campo de e-mail do cliente)
-  const emails = [client.email, client.email_nfe, client.email_boleto]
+  // Coleta todos os e-mails associados a este cliente:
+  // 1. Campos diretos do cadastro
+  const emailsCadastro = [client.email, client.email_nfe, client.email_boleto]
     .filter(Boolean)
     .map(e => e!.toLowerCase().trim())
 
-  if (!emails.includes(email.toLowerCase().trim())) {
+  // 2. E-mails armazenados nos envios de campanha (pode ser diferente do cadastro atual)
+  const sends = await adminPrisma.campaignSend.findMany({
+    where:   { client_cnpj: cnpjDigits },
+    select:  { emails: true },
+  })
+  const emailsSends = sends
+    .flatMap(s => s.emails as string[])
+    .map(e => e.toLowerCase().trim())
+    .filter(Boolean)
+
+  const todosEmails = [...new Set([...emailsCadastro, ...emailsSends])]
+
+  const emailInput = email.toLowerCase().trim()
+
+  // Se não há nenhum e-mail cadastrado, aceita qualquer um (token + CNPJ já são suficientes)
+  if (todosEmails.length > 0 && !todosEmails.includes(emailInput)) {
     return { error: 'E-mail ou CNPJ incorreto.' }
   }
 
@@ -65,16 +86,14 @@ export async function verifyPortalAccessAction(
     data:  { last_portal_access: new Date() },
   })
 
-  // Busca envios desta empresa
-  const sends = await adminPrisma.campaignSend.findMany({
+  // Busca envios com documentos
+  const allSends = await adminPrisma.campaignSend.findMany({
     where:   { client_cnpj: cnpjDigits },
     orderBy: { created_at: 'desc' },
-    include: {
-      campaign: { select: { id: true, label: true } },
-    },
+    include: { campaign: { select: { id: true, label: true } } },
   })
 
-  const visibleSends: Send[] = sends
+  const visibleSends: Send[] = allSends
     .filter(s => s.nf_pages.length > 0 || s.boleto_pages.length > 0)
     .map(s => ({
       id:            s.id,
@@ -90,13 +109,10 @@ export async function verifyPortalAccessAction(
         : null,
     }))
 
-  const fmtCnpj = (d: string) =>
-    d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')
-
   return {
     data: {
       clientName: client.name,
-      clientCnpj: fmtCnpj(cnpjDigits),
+      clientCnpj: fmtCnpj(clientCnpjRaw),
       sends:      visibleSends,
     },
   }
