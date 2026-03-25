@@ -52,24 +52,14 @@ export async function verifyPortalAccessAction(
     return { error: 'E-mail ou CNPJ incorreto.' }
   }
 
-  // Coleta todos os e-mails: cadastro do cliente + e-mails enviados nas campanhas
+  // Verifica e-mail contra os campos do cadastro do cliente
   const emailsCadastro = [client.email, client.email_nfe, client.email_boleto]
     .filter(Boolean)
     .map(e => e!.toLowerCase().trim())
 
-  const sends = await adminPrisma.campaignSend.findMany({
-    where:  { client_cnpj: cnpjDigits },
-    select: { emails: true },
-  })
-  const emailsSends = sends
-    .flatMap(s => s.emails as string[])
-    .map(e => e.toLowerCase().trim())
-    .filter(Boolean)
+  const emailInput = email.toLowerCase().trim()
 
-  const todosEmails = [...new Set([...emailsCadastro, ...emailsSends])]
-  const emailInput  = email.toLowerCase().trim()
-
-  if (todosEmails.length === 0 || !todosEmails.includes(emailInput)) {
+  if (emailsCadastro.length === 0 || !emailsCadastro.includes(emailInput)) {
     return { error: 'E-mail ou CNPJ incorreto.' }
   }
 
@@ -86,7 +76,6 @@ export async function verifyPortalAccessAction(
   })
 
   const visibleSends: Send[] = allSends
-    .filter(s => s.nf_pages.length > 0 || s.boleto_pages.length > 0)
     .map(s => ({
       id:            s.id,
       campaignId:    s.campaign.id,
