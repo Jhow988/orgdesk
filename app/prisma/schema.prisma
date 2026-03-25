@@ -272,10 +272,12 @@ model Client {
   address_state      String?
   address_zip        String?
   notes              String?
-  is_active       Boolean  @default(true)
-  bling_id        String?
-  created_at      DateTime @default(now())
-  updated_at      DateTime @updatedAt
+  is_active           Boolean   @default(true)
+  bling_id            String?
+  portal_token        String?   @unique @default(cuid())
+  last_portal_access  DateTime?
+  created_at          DateTime  @default(now())
+  updated_at          DateTime  @updatedAt
 
   organization Organization  @relation(fields: [organization_id], references: [id])
   contacts     ClientContact[]
