@@ -5,6 +5,7 @@ import { adminPrisma as prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import bcrypt from 'bcryptjs'
 import { checkModuleAccess } from './permissions'
+import { logActivity } from '@/lib/activity'
 
 async function requireOrgAdmin() {
   const session = await auth()
@@ -50,7 +51,7 @@ export async function createUserAction(
 ): Promise<{ error?: string }> {
   const denied = await checkModuleAccess('users', 'CREATE')
   if (denied) return { error: denied }
-  const { orgId } = await requireOrgAdmin()
+  const { orgId, userId: actorId } = await requireOrgAdmin()
 
   if (!name.trim())  return { error: 'Nome é obrigatório.' }
   if (!email.trim()) return { error: 'E-mail é obrigatório.' }
@@ -85,6 +86,7 @@ export async function createUserAction(
     })
   })
 
+  await logActivity({ orgId, userId: actorId, action: 'user.created', entity: 'user', payload: { name, email, role } })
   revalidatePath('/users')
   return {}
 }
@@ -97,7 +99,7 @@ export async function updateUserAction(
 ): Promise<{ error?: string }> {
   const denied = await checkModuleAccess('users', 'EDIT')
   if (denied) return { error: denied }
-  const { orgId } = await requireOrgAdmin()
+  const { orgId, userId: actorId } = await requireOrgAdmin()
 
   if (!name.trim()) return { error: 'Nome é obrigatório.' }
   if (!['ORG_ADMIN', 'ORG_FINANCE', 'ORG_SUPPORT'].includes(role)) {
@@ -121,6 +123,7 @@ export async function updateUserAction(
     prisma.membership.update({ where: { id: membership.id }, data: { role: role as any } }),
   ])
 
+  await logActivity({ orgId, userId: actorId, action: 'user.updated', entity: 'user', entityId: userId, payload: { name, role } })
   revalidatePath('/users')
   return {}
 }
@@ -129,6 +132,7 @@ export async function toggleUserAction(userId: string): Promise<{ error?: string
   const denied = await checkModuleAccess('users', 'EDIT')
   if (denied) return { error: denied }
   const { orgId, userId: currentUserId } = await requireOrgAdmin()
+  const actorId = currentUserId
 
   if (userId === currentUserId) return { error: 'Você não pode desativar sua própria conta.' }
 
@@ -141,6 +145,7 @@ export async function toggleUserAction(userId: string): Promise<{ error?: string
   if (!user) return { error: 'Usuário não encontrado.' }
 
   await prisma.user.update({ where: { id: userId }, data: { is_active: !user.is_active } })
+  await logActivity({ orgId, userId: actorId, action: user.is_active ? 'user.deactivated' : 'user.activated', entity: 'user', entityId: userId })
   revalidatePath('/users')
   return {}
 }

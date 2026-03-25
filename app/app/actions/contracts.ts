@@ -6,17 +6,18 @@ import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import crypto from 'crypto'
 import { checkModuleAccess } from './permissions'
+import { logActivity } from '@/lib/activity'
 
 async function requireOrg() {
   const session = await auth()
   if (!session?.user?.orgId) redirect('/dashboard')
-  return session.user.orgId as string
+  return { orgId: session.user.orgId as string, userId: session.user.id }
 }
 
 export async function createContractAction(_prev: unknown, formData: FormData) {
   const denied = await checkModuleAccess('contracts', 'CREATE')
   if (denied) return { error: denied }
-  const orgId = await requireOrg()
+  const { orgId, userId } = await requireOrg()
 
   const title = (formData.get('title') as string)?.trim()
   const client_id = formData.get('client_id') as string
@@ -26,7 +27,7 @@ export async function createContractAction(_prev: unknown, formData: FormData) {
   const content = (formData.get('content') as string)?.trim() || null
   const proposal_id = (formData.get('proposal_id') as string) || null
 
-  await prisma.contract.create({
+  const contract = await prisma.contract.create({
     data: {
       organization_id: orgId,
       client_id,
@@ -37,6 +38,7 @@ export async function createContractAction(_prev: unknown, formData: FormData) {
     },
   })
 
+  await logActivity({ orgId, userId, action: 'contract.created', entity: 'contract', entityId: contract.id, payload: { title } })
   revalidatePath('/comercial/contracts')
   redirect('/comercial/contracts')
 }
@@ -44,7 +46,7 @@ export async function createContractAction(_prev: unknown, formData: FormData) {
 export async function sendContractAction(id: string) {
   const denied = await checkModuleAccess('contracts', 'EDIT')
   if (denied) return
-  const orgId = await requireOrg()
+  const { orgId, userId } = await requireOrg()
   const token = crypto.randomBytes(32).toString('hex')
 
   await prisma.contract.updateMany({
@@ -52,6 +54,7 @@ export async function sendContractAction(id: string) {
     data: { status: 'SENT', sent_at: new Date(), sign_token: token },
   })
 
+  await logActivity({ orgId, userId, action: 'contract.sent', entity: 'contract', entityId: id })
   revalidatePath(`/comercial/contracts/${id}`)
 }
 
@@ -66,10 +69,11 @@ export async function signContractAction(id: string, token: string) {
 export async function cancelContractAction(id: string) {
   const denied = await checkModuleAccess('contracts', 'EDIT')
   if (denied) return
-  const orgId = await requireOrg()
+  const { orgId, userId } = await requireOrg()
   await prisma.contract.updateMany({
     where: { id, organization_id: orgId },
     data: { status: 'CANCELLED' },
   })
+  await logActivity({ orgId, userId, action: 'contract.cancelled', entity: 'contract', entityId: id })
   revalidatePath(`/comercial/contracts/${id}`)
 }

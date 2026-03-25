@@ -5,11 +5,12 @@ import { adminPrisma as prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 import { checkModuleAccess } from './permissions'
+import { logActivity } from '@/lib/activity'
 
 async function requireOrg() {
   const session = await auth()
   if (!session?.user?.orgId) redirect('/dashboard')
-  return session.user.orgId as string
+  return { orgId: session.user.orgId as string, userId: session.user.id }
 }
 
 function parseItems(formData: FormData) {
@@ -34,7 +35,7 @@ function parseItems(formData: FormData) {
 export async function createProposalAction(_prev: unknown, formData: FormData) {
   const denied = await checkModuleAccess('proposals', 'CREATE')
   if (denied) return { error: denied }
-  const orgId = await requireOrg()
+  const { orgId, userId } = await requireOrg()
 
   const title = (formData.get('title') as string)?.trim()
   const client_id = formData.get('client_id') as string
@@ -52,7 +53,7 @@ export async function createProposalAction(_prev: unknown, formData: FormData) {
   const valid_until = formData.get('valid_until') as string
   const notes = (formData.get('notes') as string)?.trim() || null
 
-  await prisma.proposal.create({
+  const proposal = await prisma.proposal.create({
     data: {
       organization_id: orgId,
       client_id,
@@ -66,6 +67,7 @@ export async function createProposalAction(_prev: unknown, formData: FormData) {
     },
   })
 
+  await logActivity({ orgId, userId, action: 'proposal.created', entity: 'proposal', entityId: proposal.id, payload: { title, number } })
   revalidatePath('/comercial/proposals')
   redirect('/comercial/proposals')
 }
@@ -73,12 +75,13 @@ export async function createProposalAction(_prev: unknown, formData: FormData) {
 export async function updateProposalStatusAction(id: string, status: string) {
   const denied = await checkModuleAccess('proposals', 'EDIT')
   if (denied) return
-  const orgId = await requireOrg()
+  const { orgId, userId } = await requireOrg()
   const data: any = { status }
   if (status === 'SENT') data.sent_at = new Date()
   if (status === 'ACCEPTED') data.accepted_at = new Date()
   if (status === 'REJECTED') data.rejected_at = new Date()
 
   await prisma.proposal.updateMany({ where: { id, organization_id: orgId }, data })
+  await logActivity({ orgId, userId, action: 'proposal.status_changed', entity: 'proposal', entityId: id, payload: { status } })
   revalidatePath(`/comercial/proposals/${id}`)
 }

@@ -45,8 +45,9 @@ export const MODULES: ModuleDef[] = [
   { key: 'tickets',            label: 'Chamados',          section: 'Suporte' },
   { key: 'tickets_relatorios', label: 'Relatórios',        section: 'Suporte' },
   // Configurações
-  { key: 'settings_company',   label: 'Dados da empresa',  section: 'Configurações' },
-  { key: 'settings_email',     label: 'Perfil de E-mail',  section: 'Configurações' },
+  { key: 'settings_company',   label: 'Dados da empresa',       section: 'Configurações' },
+  { key: 'settings_email',     label: 'Perfil de E-mail',       section: 'Configurações' },
+  { key: 'activity',           label: 'Histórico de Atividades', section: 'Configurações' },
 ]
 
 // Default access per role when no custom permission is configured

@@ -5,6 +5,7 @@ import { adminPrisma as prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import { buildModuleAccessMap, getEffectiveAccess, hasAccess, MODULES } from '@/lib/modules'
 import type { AccessLevel } from '@/lib/modules'
+import { logActivity } from '@/lib/activity'
 
 /**
  * Checks if the current user has the required access level for a module.
@@ -123,6 +124,8 @@ export async function saveUserPermissionsAction(
       )
   )
 
+  const session = await auth()
+  await logActivity({ orgId, userId: session?.user?.id, action: 'permissions.updated', entity: 'permissions', entityId: membershipId })
   revalidatePath('/settings/permissions')
   return {}
 }

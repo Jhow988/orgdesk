@@ -3,6 +3,7 @@
 import { auth } from '@/auth'
 import { adminPrisma as prisma } from '@/lib/prisma'
 import { checkModuleAccess } from './permissions'
+import { logActivity } from '@/lib/activity'
 import { uploadFile, deleteFile, buildKey } from '@/lib/storage'
 import { extrairCnpjDaPagina, extrairCnpjBoleto } from '@/lib/pdf-extractor'
 import { revalidatePath } from 'next/cache'
@@ -106,6 +107,7 @@ export async function createCampaignAction(prev: CampaignState, formData: FormDa
     },
   })
 
+  await logActivity({ orgId: session.user.orgId, userId: session.user.id, action: 'campaign.created', entity: 'campaign', payload: { label } })
   revalidatePath('/campaigns')
   return null
 }
@@ -392,6 +394,7 @@ export async function activateCampaignAction(campaignId: string): Promise<{ erro
     data: { status: 'ACTIVE', started_at: new Date() },
   })
 
+  await logActivity({ orgId: session.user.orgId, userId: session.user.id, action: 'campaign.activated', entity: 'campaign', entityId: campaignId })
   revalidatePath('/campaigns')
   revalidatePath('/financeiro/enviar-cobranca')
   redirect(`/financeiro/enviar-cobranca?campaign=${campaignId}`)
@@ -417,6 +420,7 @@ export async function deleteCampaignAction(campaignId: string): Promise<{ error?
   await prisma.campaignSend.deleteMany({ where: { campaign_id: campaignId } })
   await prisma.campaign.delete({ where: { id: campaignId } })
 
+  await logActivity({ orgId: session.user.orgId, userId: session.user.id, action: 'campaign.deleted', entity: 'campaign', entityId: campaignId })
   revalidatePath('/campaigns')
   return {}
 }

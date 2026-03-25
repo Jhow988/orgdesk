@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Building2, Receipt,
   Megaphone, BarChart2, MessageSquare, Users, Package,
   UserCog, FileCheck, FileSignature, Briefcase, Shield,
-  Settings, MapPin, Send, SendHorizonal, Mail,
+  Settings, MapPin, Send, SendHorizonal, Mail, ClipboardList,
 } from 'lucide-react'
 import type { AccessLevel } from '@/lib/modules'
 
@@ -68,9 +68,10 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Configurações',
     items: [
-      { href: '/settings/permissions', label: 'Permissões',       icon: Shield,   roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
-      { href: '/settings/company',     label: 'Dados da empresa', icon: Settings, module: 'settings_company' },
-      { href: '/settings/email',       label: 'Perfil de E-mail', icon: Mail,     module: 'settings_email' },
+      { href: '/settings/permissions', label: 'Permissões',             icon: Shield,        roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
+      { href: '/settings/activity',   label: 'Histórico de Atividades', icon: ClipboardList, roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
+      { href: '/settings/company',    label: 'Dados da empresa',       icon: Settings,      module: 'settings_company' },
+      { href: '/settings/email',      label: 'Perfil de E-mail',       icon: Mail,          module: 'settings_email' },
     ],
   },
 ]
