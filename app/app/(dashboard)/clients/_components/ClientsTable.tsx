@@ -2,8 +2,9 @@
 
 import { useState, useMemo, useTransition, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, RefreshCw, ChevronLeft, ChevronRight, Link2, Link2Off, Pencil, X } from 'lucide-react'
+import { Search, RefreshCw, ChevronLeft, ChevronRight, Link2, Link2Off, Pencil, X, Upload } from 'lucide-react'
 import { syncBlingAction, getBlingConnectUrlAction, disconnectBlingAction, updateClientAction, type ClientUpdateData } from '@/app/actions/bling'
+import { bulkUpdateEmailsAction, type BulkEmailResult } from '@/app/actions/bulk-update-emails'
 
 interface Client {
   id:                 string
@@ -45,6 +46,7 @@ export function ClientsTable({ clients, blingConnected, lastSyncAt, flashConnect
   const [search, setSearch] = useState('')
   const [page, setPage]     = useState(1)
   const [toast, setToast]   = useState<{ msg: string; ok: boolean } | null>(null)
+  const [bulkResult, setBulkResult] = useState<BulkEmailResult | null>(null)
   const [editing, setEditing] = useState<Client | null>(null)
   const [editForm, setEditForm] = useState<ClientUpdateData>({
     name: '', trade_name: '', email: '', email_boleto: '', phone: '',
@@ -107,6 +109,15 @@ export function ClientsTable({ clients, blingConnected, lastSyncAt, flashConnect
     })
   }
 
+  function handleBulkUpdateEmails() {
+    startTransition(async () => {
+      const res = await bulkUpdateEmailsAction()
+      if ('error' in res) { showToast(res.error, false); return }
+      setBulkResult(res)
+      router.refresh()
+    })
+  }
+
   function openEdit(c: Client) {
     setEditing(c)
     setEditForm({
@@ -151,6 +162,47 @@ export function ClientsTable({ clients, blingConnected, lastSyncAt, flashConnect
             : 'border-red-700 bg-red-900/80 text-red-300'
         }`}>
           {toast.msg}
+        </div>
+      )}
+
+      {/* Bulk Email Result Modal */}
+      {bulkResult && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-lg rounded-xl border border-white/[0.1] bg-zinc-900 p-6 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-zinc-100">Resultado — Atualização de Emails</h2>
+              <button onClick={() => setBulkResult(null)} className="text-zinc-500 hover:text-zinc-300"><X size={16} /></button>
+            </div>
+            <div className="mb-4 grid grid-cols-3 gap-3 text-center">
+              <div className="rounded-lg border border-emerald-700/30 bg-emerald-900/20 p-3">
+                <div className="text-2xl font-bold text-emerald-400">{bulkResult.updated}</div>
+                <div className="text-xs text-zinc-400">Atualizados</div>
+              </div>
+              <div className="rounded-lg border border-white/[0.08] bg-white/[0.03] p-3">
+                <div className="text-2xl font-bold text-zinc-400">{bulkResult.skipped}</div>
+                <div className="text-xs text-zinc-400">Ignorados</div>
+              </div>
+              <div className="rounded-lg border border-white/[0.08] bg-white/[0.03] p-3">
+                <div className="text-2xl font-bold text-zinc-400">{bulkResult.notFound}</div>
+                <div className="text-xs text-zinc-400">Não encontrados</div>
+              </div>
+            </div>
+            {bulkResult.log.length > 0 && (
+              <div className="max-h-60 overflow-y-auto rounded-lg border border-white/[0.08] bg-black/30 p-3">
+                {bulkResult.log.map((l, i) => (
+                  <p key={i} className="text-xs text-zinc-400 py-0.5">{l}</p>
+                ))}
+              </div>
+            )}
+            {bulkResult.blingErrors > 0 && (
+              <p className="mt-3 text-xs text-amber-400">{bulkResult.blingErrors} erro(s) ao sincronizar com Bling.</p>
+            )}
+            <div className="mt-4 flex justify-end">
+              <button onClick={() => setBulkResult(null)} className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
+                Fechar
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -260,6 +312,16 @@ export function ClientsTable({ clients, blingConnected, lastSyncAt, flashConnect
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={handleBulkUpdateEmails}
+            disabled={isPending}
+            title="Atualizar emails do CSV"
+            className="flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-xs text-zinc-400 hover:text-zinc-200 hover:border-white/[0.15] disabled:opacity-50 transition-colors"
+          >
+            <Upload size={12} />
+            Atualizar Emails CSV
+          </button>
+
           {blingConnected ? (
             <>
               {lastSyncAt && (
