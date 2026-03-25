@@ -33,10 +33,11 @@ export default async function EnviarCobrancaPage() {
   const clientMap = new Map(clients.map(c => [c.cnpj.replace(/\D/g, ''), c]))
 
   const serialized = campaigns.map(c => ({
-    id:         c.id,
-    label:      c.label,
-    month_year: c.month_year,
-    status:     c.status,
+    id:           c.id,
+    label:        c.label,
+    month_year:   c.month_year,
+    status:       c.status,
+    has_boleto:   !!c.pdf_boleto_key,
     sends: c.sends.map(s => {
       const client    = clientMap.get(s.client_cnpj.replace(/\D/g, ''))
       const realName  = client?.name ?? s.client_name

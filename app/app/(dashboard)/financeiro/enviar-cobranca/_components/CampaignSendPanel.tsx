@@ -27,6 +27,7 @@ interface Campaign {
   label:      string
   month_year: string
   status:     string
+  has_boleto: boolean
   sends:      CampaignSend[]
 }
 
@@ -277,7 +278,6 @@ export function CampaignSendPanel({ campaigns, defaultCampaignId }: Props) {
               </th>
               <th className="px-4 py-2.5 text-left text-[9px] font-semibold uppercase tracking-widest text-zinc-500">Cliente</th>
               <th className="px-4 py-2.5 text-left text-[9px] font-semibold uppercase tracking-widest text-zinc-500">CNPJ</th>
-              <th className="px-4 py-2.5 text-left text-[9px] font-semibold uppercase tracking-widest text-zinc-500">E-mail</th>
               <th className="px-4 py-2.5 text-left text-[9px] font-semibold uppercase tracking-widest text-zinc-500">Anexos</th>
               <th className="px-4 py-2.5 text-left text-[9px] font-semibold uppercase tracking-widest text-zinc-500">Status</th>
               <th className="px-4 py-2.5 text-[9px] font-semibold uppercase tracking-widest text-zinc-500 text-right">Ação</th>
@@ -286,13 +286,15 @@ export function CampaignSendPanel({ campaigns, defaultCampaignId }: Props) {
           <tbody>
             {paginated.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-4 py-10 text-center text-zinc-500">
+                <td colSpan={6} className="px-4 py-10 text-center text-zinc-500">
                   Nenhum registro encontrado.
                 </td>
               </tr>
             ) : paginated.map(s => {
               const hasNf     = s.nf_pages.length > 0
-              const hasBoleto = s.boleto_pages.length > 0
+              // boleto_pages may be empty on sends created before the current code;
+              // fall back to showing the button whenever the campaign has a boleto PDF
+              const hasBoleto = s.boleto_pages.length > 0 || campaign?.has_boleto === true
               return (
                 <tr
                   key={s.id}
@@ -325,14 +327,6 @@ export function CampaignSendPanel({ campaigns, defaultCampaignId }: Props) {
                   {/* CNPJ */}
                   <td className="px-4 py-2.5 font-mono text-zinc-500">
                     {s.client_cnpj.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, '$1.$2.$3/$4-$5')}
-                  </td>
-
-                  {/* E-mail */}
-                  <td className="px-4 py-2.5 max-w-[180px] truncate text-blue-400" title={s.emails[0]}>
-                    {s.emails.length > 0
-                      ? <span className={s.emails.length > 1 ? 'text-teal-400' : 'text-blue-400'}>{s.emails[0]}</span>
-                      : <span className="text-zinc-600">—</span>
-                    }
                   </td>
 
                   {/* Anexos — download buttons */}
