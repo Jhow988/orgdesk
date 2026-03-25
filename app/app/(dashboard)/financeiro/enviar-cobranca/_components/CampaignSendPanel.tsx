@@ -292,9 +292,7 @@ export function CampaignSendPanel({ campaigns, defaultCampaignId }: Props) {
               </tr>
             ) : paginated.map(s => {
               const hasNf     = s.nf_pages.length > 0
-              // boleto_pages may be empty on sends created before the current code;
-              // fall back to showing the button whenever the campaign has a boleto PDF
-              const hasBoleto = s.boleto_pages.length > 0 || campaign?.has_boleto === true
+              const hasBoleto = s.boleto_pages.length > 0
               return (
                 <tr
                   key={s.id}
