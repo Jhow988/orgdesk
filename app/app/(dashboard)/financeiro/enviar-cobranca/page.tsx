@@ -7,40 +7,60 @@ export default async function EnviarCobrancaPage() {
   const session = await auth()
   if (!session?.user?.orgId) redirect('/dashboard')
 
-  const campaigns = await prisma.campaign.findMany({
-    where: { organization_id: session.user.orgId },
-    orderBy: { created_at: 'desc' },
-    include: {
-      sends: {
-        orderBy: { client_name: 'asc' },
-        include: {
-          invoice: { select: { id: true, number: true, amount: true } },
-          boleto:  { select: { id: true, amount: true } },
+  const orgId = session.user.orgId
+
+  const [campaigns, clients] = await Promise.all([
+    prisma.campaign.findMany({
+      where:    { organization_id: orgId },
+      orderBy:  { created_at: 'desc' },
+      include: {
+        sends: {
+          orderBy: { client_name: 'asc' },
+          include: {
+            invoice: { select: { id: true, number: true, amount: true } },
+            boleto:  { select: { id: true, amount: true } },
+          },
         },
       },
-    },
-  })
+    }),
+    prisma.client.findMany({
+      where:  { organization_id: orgId },
+      select: { cnpj: true, name: true, email: true, email_nfe: true, email_boleto: true },
+    }),
+  ])
+
+  // Map CNPJ (digits only) → client record for fast lookup
+  const clientMap = new Map(clients.map(c => [c.cnpj.replace(/\D/g, ''), c]))
 
   const serialized = campaigns.map(c => ({
-    id: c.id,
-    label: c.label,
+    id:         c.id,
+    label:      c.label,
     month_year: c.month_year,
-    status: c.status,
-    sends: c.sends.map(s => ({
-      id: s.id,
-      client_cnpj: s.client_cnpj,
-      client_name: s.client_name,
-      emails: s.emails,
-      status: s.status,
-      sent_at: s.sent_at ? s.sent_at.toISOString() : null,
-      open_count: s.open_count,
-      invoice: s.invoice
-        ? { id: s.invoice.id, number: s.invoice.number, amount: Number(s.invoice.amount) }
-        : null,
-      boleto: s.boleto
-        ? { id: s.boleto.id, amount: Number(s.boleto.amount) }
-        : null,
-    })),
+    status:     c.status,
+    sends: c.sends.map(s => {
+      const client    = clientMap.get(s.client_cnpj.replace(/\D/g, ''))
+      const realName  = client?.name ?? s.client_name
+      // Prefer email_nfe > email_boleto > email (same priority used at activation)
+      const realEmail = client?.email_nfe ?? client?.email_boleto ?? client?.email ?? null
+      return {
+        id:           s.id,
+        client_cnpj:  s.client_cnpj,
+        client_name:  realName,
+        client_email: realEmail,
+        emails:       s.emails,
+        status:       s.status as string,
+        sent_at:      s.sent_at ? s.sent_at.toISOString() : null,
+        open_count:   s.open_count,
+        nf_pages:     s.nf_pages,
+        boleto_pages: s.boleto_pages,
+        invoice: s.invoice
+          ? { id: s.invoice.id, number: s.invoice.number, amount: Number(s.invoice.amount) }
+          : null,
+        boleto: s.boleto
+          ? { id: s.boleto.id, amount: Number(s.boleto.amount) }
+          : null,
+      }
+    }),
   }))
 
   return (

@@ -98,6 +98,127 @@ export async function createCampaignAction(prev: CampaignState, formData: FormDa
   return null
 }
 
+// ─── shared: fetch S3 + parse PDFs ──────────────────────────────────────────
+
+async function buildS3Client() {
+  const { S3Client } = await import('@aws-sdk/client-s3')
+  return new S3Client({
+    endpoint: `http${process.env.MINIO_USE_SSL === 'true' ? 's' : ''}://${process.env.MINIO_ENDPOINT}:${process.env.MINIO_PORT}`,
+    region: 'us-east-1',
+    credentials: {
+      accessKeyId:     process.env.MINIO_ACCESS_KEY!,
+      secretAccessKey: process.env.MINIO_SECRET_KEY!,
+    },
+    forcePathStyle: true,
+  })
+}
+
+async function fetchBuffer(key: string): Promise<Buffer> {
+  const { GetObjectCommand } = await import('@aws-sdk/client-s3')
+  const s3 = await buildS3Client()
+  const res = await s3.send(new GetObjectCommand({ Bucket: process.env.MINIO_BUCKET!, Key: key }))
+  const chunks: Uint8Array[] = []
+  for await (const chunk of res.Body as any) chunks.push(chunk)
+  return Buffer.concat(chunks)
+}
+
+interface CampaignMatch {
+  cnpj:        string
+  clientName:  string
+  email:       string | null
+  nfPages:     number[]
+  boletoPages: number[]
+  hasBoth:     boolean   // CNPJ appears in both NF and boleto
+}
+
+async function buildMatches(campaignId: string, orgId: string): Promise<{
+  matches?: CampaignMatch[]
+  cnpjsIgnore: string[]
+  error?: string
+}> {
+  const campaign = await prisma.campaign.findFirst({
+    where: { id: campaignId, organization_id: orgId },
+  })
+  if (!campaign) return { cnpjsIgnore: [], error: 'Campanha não encontrada.' }
+  if (!campaign.pdf_nf_key) return { cnpjsIgnore: [], error: 'PDF de NFs não encontrado.' }
+
+  const org = await prisma.organization.findUnique({
+    where: { id: orgId },
+    select: { cnpjs_ignore: true },
+  })
+  const cnpjsIgnore = org?.cnpjs_ignore ?? []
+
+  // NF PDF
+  let nfBuffer: Buffer
+  try { nfBuffer = await fetchBuffer(campaign.pdf_nf_key) }
+  catch (e: any) { return { cnpjsIgnore, error: `Erro ao buscar PDF de NFs: ${e?.message ?? e}` } }
+
+  let nfPages: string[]
+  try { nfPages = await parsePdfPages(nfBuffer) }
+  catch (e: any) { return { cnpjsIgnore, error: `Erro ao processar PDF de NFs: ${e?.message ?? e}` } }
+
+  const cnpjNfPages: Map<string, number[]> = new Map()
+  nfPages.forEach((text, idx) => {
+    const cnpj = extrairCnpjDaPagina(text, idx + 1)
+    if (cnpj && !cnpjsIgnore.includes(cnpj)) {
+      cnpjNfPages.set(cnpj, [...(cnpjNfPages.get(cnpj) ?? []), idx + 1])
+    }
+  })
+
+  // Boleto PDF
+  const bolCnpjPage: Map<string, number> = new Map()
+  if (campaign.pdf_boleto_key) {
+    try {
+      const bolBuffer = await fetchBuffer(campaign.pdf_boleto_key)
+      const bolPages  = await parsePdfPages(bolBuffer)
+      bolPages.forEach((text, idx) => {
+        const cnpj = extrairCnpjBoleto(text, cnpjsIgnore)
+        if (cnpj && !bolCnpjPage.has(cnpj)) bolCnpjPage.set(cnpj, idx + 1)
+      })
+    } catch { /* boleto optional */ }
+  }
+
+  // Load clients
+  const clients = await prisma.client.findMany({
+    where: { organization_id: orgId },
+    select: { cnpj: true, name: true, email: true, email_nfe: true, email_boleto: true },
+  })
+  const clientByCnpj = new Map(clients.map(c => [c.cnpj.replace(/\D/g, ''), c]))
+
+  const matches: CampaignMatch[] = []
+  const seen = new Set<string>()
+
+  for (const [cnpj, nfPgs] of cnpjNfPages.entries()) {
+    seen.add(cnpj)
+    const client = clientByCnpj.get(cnpj)
+    const bolPgs = bolCnpjPage.has(cnpj) ? [bolCnpjPage.get(cnpj)!] : []
+    const email  = client?.email_nfe ?? client?.email ?? null
+    matches.push({ cnpj, clientName: client?.name ?? cnpj, email, nfPages: nfPgs, boletoPages: bolPgs, hasBoth: bolPgs.length > 0 })
+  }
+
+  for (const [cnpj, bolPg] of bolCnpjPage.entries()) {
+    if (seen.has(cnpj)) continue
+    const client = clientByCnpj.get(cnpj)
+    const email  = client?.email_boleto ?? client?.email ?? null
+    matches.push({ cnpj, clientName: client?.name ?? cnpj, email, nfPages: [], boletoPages: [bolPg], hasBoth: false })
+  }
+
+  return { matches, cnpjsIgnore }
+}
+
+// ─── preview campaign (no DB writes) ─────────────────────────────────────────
+
+export async function previewCampaignAction(campaignId: string): Promise<{
+  matches?: CampaignMatch[]
+  error?: string
+}> {
+  const session = await auth()
+  if (!session?.user?.orgId) return { error: 'Não autenticado.' }
+  const { matches, error } = await buildMatches(campaignId, session.user.orgId)
+  if (error) return { error }
+  return { matches }
+}
+
 // ─── activate campaign ───────────────────────────────────────────────────────
 
 export async function activateCampaignAction(campaignId: string): Promise<{ error?: string }> {
