@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useTransition } from 'react'
-import { Shield, ChevronRight, Lock, Check } from 'lucide-react'
+import { useState, useTransition, useMemo } from 'react'
+import { Shield, ChevronRight, Lock, Check, Search } from 'lucide-react'
 import { saveUserPermissionsAction } from '@/app/actions/permissions'
 import {
   MODULES, ACCESS_LEVELS, ROLE_DEFAULT_ACCESS, buildModuleAccessMap,
@@ -38,11 +38,20 @@ const ACCESS_STYLE: Record<AccessLevel, string> = {
   FULL:   'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
 }
 
-export function PermissionsClient({ users, currentUserId }: Props) {
+export function PermissionsClient({ users }: Props) {
   const [selected, setSelected] = useState<OrgUser | null>(null)
   const [draft,    setDraft]    = useState<Record<string, AccessLevel>>({})
   const [toast,    setToast]    = useState<{ msg: string; ok: boolean } | null>(null)
+  const [search,   setSearch]   = useState('')
   const [isPending, startTransition] = useTransition()
+
+  const filteredUsers = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return users
+    return users.filter(u =>
+      u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+    )
+  }, [users, search])
 
   function showToast(msg: string, ok = true) {
     setToast({ msg, ok })
@@ -99,11 +108,22 @@ export function PermissionsClient({ users, currentUserId }: Props) {
         {/* User list */}
         <div className="w-64 flex-shrink-0">
           <div className="rounded-xl border border-white/[0.08] bg-white/[0.02] overflow-hidden">
-            <div className="border-b border-white/[0.08] px-4 py-3">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-zinc-500">Usuários</p>
+            <div className="border-b border-white/[0.08] px-3 py-2.5">
+              <div className="flex items-center gap-2 rounded-md border border-white/[0.08] bg-white/[0.03] px-2.5 py-1.5">
+                <Search size={12} className="flex-shrink-0 text-zinc-500" />
+                <input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Buscar usuário…"
+                  className="w-full bg-transparent text-[12px] text-zinc-200 placeholder-zinc-600 focus:outline-none"
+                />
+              </div>
             </div>
             <div className="divide-y divide-white/[0.05]">
-              {users.map(u => (
+              {filteredUsers.length === 0 && (
+                <p className="px-4 py-4 text-[12px] text-zinc-500">Nenhum usuário encontrado.</p>
+              )}
+              {filteredUsers.map(u => (
                 <button
                   key={u.user_id}
                   onClick={() => selectUser(u)}
