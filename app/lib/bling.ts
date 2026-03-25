@@ -347,10 +347,26 @@ interface BlingProduto {
   nome:         string
   codigo?:      string
   descricao?:   string
-  tipo?:        string   // 'P' = Produto, 'S' = Serviço, 'C' = Componente
-  unidade?:     string
+  // tipo can be a string ('P','S','C') or an object {id, descricao}
+  tipo?:        string | { id: number; descricao?: string }
+  // unidade can be a string or an object {id, descricao}
+  unidade?:     string | { id: number; descricao?: string }
   preco?:       number
   situacao?:    string   // 'A' = Ativo, 'I' = Inativo
+}
+
+function parseTipo(tipo: BlingProduto['tipo']): 'PRODUCT' | 'SERVICE' {
+  const raw = typeof tipo === 'object' ? (tipo?.descricao ?? '') : (tipo ?? '')
+  const upper = raw.toUpperCase()
+  // 'Produto', 'P', 'Componente', 'C' → PRODUCT; 'Serviço', 'S' → SERVICE
+  if (upper.startsWith('P') || upper.startsWith('C')) return 'PRODUCT'
+  return 'SERVICE'
+}
+
+function parseUnidade(unidade: BlingProduto['unidade']): string {
+  if (!unidade) return 'un'
+  if (typeof unidade === 'object') return unidade.descricao ?? 'un'
+  return unidade
 }
 
 export async function syncProdutos(orgId: string): Promise<SyncResult> {
@@ -365,44 +381,53 @@ export async function syncProdutos(orgId: string): Promise<SyncResult> {
     )
     if (!res.ok) throw new Error(`Bling produtos: ${res.status} ${await res.text()}`)
 
-    const body = (await res.json()) as { data?: BlingProduto[] | { data: BlingProduto[] } }
+    const rawText = await res.text()
+    const body = JSON.parse(rawText) as { data?: BlingProduto[] | { data: BlingProduto[] } }
     const items: BlingProduto[] = Array.isArray(body.data)
       ? body.data
       : ((body.data as any)?.data ?? [])
+
+    if (page === 1) {
+      console.log('[bling:produtos] first item sample:', JSON.stringify(items[0] ?? null))
+    }
 
     if (!items.length) break
 
     for (const item of items) {
       try {
         const blingId   = String(item.id)
-        const tipo      = (item.tipo ?? 'S').toUpperCase()
-        const type      = tipo === 'P' || tipo === 'C' ? 'PRODUCT' : 'SERVICE'
+        const type      = parseTipo(item.tipo)
         const price     = item.preco ?? 0
         const is_active = item.situacao !== 'I'
+        const unit      = parseUnidade(item.unidade)
 
-        await adminPrisma.product.upsert({
-          where:  { organization_id_bling_id: { organization_id: orgId, bling_id: blingId } },
-          create: {
-            organization_id: orgId,
-            bling_id:        blingId,
-            name:            item.nome,
-            description:     item.descricao  ?? null,
-            unit:            item.unidade    ?? 'un',
-            price,
-            type:            type as any,
-            is_active,
-          },
-          update: {
-            name:        item.nome,
-            description: item.descricao ?? null,
-            unit:        item.unidade   ?? 'un',
-            price,
-            type:        type as any,
-            is_active,
-          },
+        const existing = await adminPrisma.product.findFirst({
+          where: { organization_id: orgId, bling_id: blingId },
+          select: { id: true },
         })
+
+        if (existing) {
+          await (adminPrisma.product as any).update({
+            where: { id: existing.id },
+            data:  { name: item.nome, description: item.descricao ?? null, unit, price, type, is_active },
+          })
+        } else {
+          await (adminPrisma.product as any).create({
+            data: {
+              organization_id: orgId,
+              bling_id:        blingId,
+              name:            item.nome,
+              description:     item.descricao ?? null,
+              unit,
+              price,
+              type,
+              is_active,
+            },
+          })
+        }
         result.upserted++
-      } catch {
+      } catch (e) {
+        console.error('[bling:produtos] error id', item.id, (e as Error)?.message ?? e)
         result.errors++
       }
     }
