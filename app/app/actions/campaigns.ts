@@ -9,6 +9,11 @@ import { redirect } from 'next/navigation'
 
 // ─── helpers ────────────────────────────────────────────────────────────────
 
+// Formata 14 dígitos → XX.XXX.XXX/XXXX-XX para busca direta no texto do PDF
+function cnpjToText(cnpj: string): string {
+  return cnpj.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')
+}
+
 function monthYearToLabel(iso: string): string {
   // iso = "2026-03"  →  "03/2026"
   const [y, m] = iso.split('-')
@@ -167,15 +172,30 @@ async function buildMatches(campaignId: string, orgId: string): Promise<{
 
   // Boleto PDF
   const bolCnpjPage: Map<string, number> = new Map()
+  let bolPagesTexts: string[] = []
   if (campaign.pdf_boleto_key) {
     try {
       const bolBuffer = await fetchBuffer(campaign.pdf_boleto_key)
-      const bolPages  = await parsePdfPages(bolBuffer)
-      bolPages.forEach((text, idx) => {
+      bolPagesTexts   = await parsePdfPages(bolBuffer)
+      bolPagesTexts.forEach((text, idx) => {
         const cnpj = extrairCnpjBoleto(text, cnpjsIgnore)
         if (cnpj && !bolCnpjPage.has(cnpj)) bolCnpjPage.set(cnpj, idx + 1)
       })
     } catch { /* boleto optional */ }
+  }
+
+  // Secondary pass: for NF CNPJs not matched by the extractor, search the
+  // formatted CNPJ string directly in each boleto page text (catches "Sacado" layouts)
+  if (bolPagesTexts.length > 0) {
+    for (const cnpj of cnpjNfPages.keys()) {
+      if (bolCnpjPage.has(cnpj)) continue
+      const formatted = cnpjToText(cnpj)
+      bolPagesTexts.forEach((text, idx) => {
+        if (!bolCnpjPage.has(cnpj) && text.includes(formatted)) {
+          bolCnpjPage.set(cnpj, idx + 1)
+        }
+      })
+    }
   }
 
   // Load clients
@@ -283,13 +303,27 @@ export async function activateCampaignAction(campaignId: string): Promise<{ erro
 
   // Boleto: CNPJ → page index
   const bolCnpjPage: Map<string, number> = new Map()
+  let bolPagesTexts: string[] = []
   if (campaign.pdf_boleto_key) {
     const bolBuffer = await fetchBuffer(campaign.pdf_boleto_key)
-    const bolPages  = await parsePdfPages(bolBuffer)
-    bolPages.forEach((text, idx) => {
+    bolPagesTexts   = await parsePdfPages(bolBuffer)
+    bolPagesTexts.forEach((text, idx) => {
       const cnpj = extrairCnpjBoleto(text, cnpjsIgnore)
       if (cnpj && !bolCnpjPage.has(cnpj)) bolCnpjPage.set(cnpj, idx + 1)
     })
+  }
+
+  // Secondary pass: direct text search for NF CNPJs missed by the extractor
+  if (bolPagesTexts.length > 0) {
+    for (const cnpj of cnpjPages.keys()) {
+      if (bolCnpjPage.has(cnpj)) continue
+      const formatted = cnpjToText(cnpj)
+      bolPagesTexts.forEach((text, idx) => {
+        if (!bolCnpjPage.has(cnpj) && text.includes(formatted)) {
+          bolCnpjPage.set(cnpj, idx + 1)
+        }
+      })
+    }
   }
 
   // Load all clients for this org
