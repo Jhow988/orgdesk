@@ -68,92 +68,6 @@ function fmtCnpj(cnpj: string) {
 
 // ─── New Ticket Modal ──────────────────────────────────────────────────────────
 
-function ClientCombobox({
-  clients,
-  value,
-  onChange,
-}: {
-  clients:  Client[]
-  value:    string
-  onChange: (id: string) => void
-}) {
-  const inputRef = useRef<HTMLInputElement>(null)
-  const [filter, setFilter] = useState('')
-  const [open,   setOpen]   = useState(false)
-
-  const selected = value ? clients.find(c => c.id === value) ?? null : null
-
-  const q = filter.trim().toLowerCase()
-  const results = q
-    ? clients.filter(c =>
-        c.name.toLowerCase().includes(q) ||
-        c.cnpj.replace(/\D/g, '').includes(q.replace(/\D/g, ''))
-      ).slice(0, 60)
-    : clients.slice(0, 60)
-
-  function handleInput() {
-    setFilter(inputRef.current?.value ?? '')
-    setOpen(true)
-  }
-
-  function pick(c: Client) {
-    onChange(c.id)
-    setFilter('')
-    setOpen(false)
-    if (inputRef.current) inputRef.current.value = ''
-  }
-
-  function clear() {
-    onChange('')
-    setFilter('')
-    setOpen(true)
-    setTimeout(() => inputRef.current?.focus(), 0)
-  }
-
-  if (selected && !open) {
-    return (
-      <div className="flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2">
-        <span className="flex-1 text-xs text-zinc-200 truncate">{selected.name}</span>
-        <span className="text-[11px] text-zinc-600 font-mono shrink-0">{fmtCnpj(selected.cnpj)}</span>
-        <button type="button" onClick={clear}
-          className="rounded p-0.5 text-zinc-600 hover:text-zinc-300 transition-colors shrink-0">
-          <X size={11} />
-        </button>
-      </div>
-    )
-  }
-
-  return (
-    <div className="relative">
-      <Search size={12} className="absolute left-3 top-3.5 text-zinc-500 pointer-events-none" />
-      <input
-        ref={inputRef}
-        type="text"
-        autoComplete="off"
-        defaultValue=""
-        onInput={handleInput}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setTimeout(() => setOpen(false), 200)}
-        placeholder="Digite para buscar…"
-        className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] pl-8 pr-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:border-indigo-500/40 focus:outline-none"
-      />
-      {open && (
-        <div className="absolute z-30 mt-1 w-full max-h-52 overflow-y-auto rounded-lg border border-white/[0.10] bg-zinc-900 shadow-2xl">
-          {results.length === 0 ? (
-            <p className="px-3 py-3 text-xs text-zinc-500">Nenhum resultado para &ldquo;{filter}&rdquo;</p>
-          ) : results.map(c => (
-            <button key={c.id} type="button" onMouseDown={() => pick(c)}
-              className="flex w-full flex-col items-start px-3 py-2 text-left hover:bg-white/[0.06] transition-colors border-b border-white/[0.03] last:border-0">
-              <span className="text-xs font-medium text-zinc-200">{c.name}</span>
-              <span className="text-[11px] text-zinc-600 font-mono">{fmtCnpj(c.cnpj)}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
 function NewTicketModal({
   clients,
   onClose,
@@ -171,7 +85,33 @@ function NewTicketModal({
     priority:  'MEDIUM',
     category:  '',
   })
-  const [error, setError] = useState('')
+  const [error,        setError]        = useState('')
+  const [clientSearch, setClientSearch] = useState('')
+  const [clientOpen,   setClientOpen]   = useState(false)
+  const clientInputRef = useRef<HTMLInputElement>(null)
+
+  const selectedClient = form.clientId ? clients.find(c => c.id === form.clientId) ?? null : null
+
+  const q = clientSearch.trim().toLowerCase()
+  const clientResults = q.length >= 3
+    ? clients.filter(c =>
+        c.name.toLowerCase().startsWith(q) ||
+        c.cnpj.replace(/\D/g, '').startsWith(q.replace(/\D/g, ''))
+      ).slice(0, 60)
+    : []
+
+  function pickClient(c: Client) {
+    setForm(f => ({ ...f, clientId: c.id }))
+    setClientSearch('')
+    setClientOpen(false)
+  }
+
+  function clearClient() {
+    setForm(f => ({ ...f, clientId: '' }))
+    setClientSearch('')
+    setClientOpen(true)
+    setTimeout(() => clientInputRef.current?.focus(), 0)
+  }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -207,14 +147,47 @@ function NewTicketModal({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Client combobox */}
+          {/* Client search */}
           <div>
             <label className="block mb-1.5 text-xs font-medium text-zinc-400">Cliente</label>
-            <ClientCombobox
-              clients={clients}
-              value={form.clientId}
-              onChange={id => setForm(f => ({ ...f, clientId: id }))}
-            />
+            {selectedClient && !clientOpen ? (
+              <div className="flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2">
+                <span className="flex-1 text-xs text-zinc-200 truncate">{selectedClient.name}</span>
+                <span className="text-[11px] text-zinc-600 font-mono shrink-0">{fmtCnpj(selectedClient.cnpj)}</span>
+                <button type="button" onClick={clearClient}
+                  className="rounded p-0.5 text-zinc-600 hover:text-zinc-300 transition-colors shrink-0">
+                  <X size={11} />
+                </button>
+              </div>
+            ) : (
+              <div className="relative">
+                <Search size={12} className="absolute left-3 top-3.5 text-zinc-500 pointer-events-none" />
+                <input
+                  ref={clientInputRef}
+                  type="text"
+                  autoComplete="off"
+                  value={clientSearch}
+                  onChange={e => { setClientSearch(e.target.value); setClientOpen(true) }}
+                  onFocus={() => setClientOpen(true)}
+                  onBlur={() => setTimeout(() => setClientOpen(false), 200)}
+                  placeholder="Digite para buscar…"
+                  className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] pl-8 pr-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:border-indigo-500/40 focus:outline-none"
+                />
+                {clientOpen && (
+                  <div className="absolute z-30 mt-1 w-full max-h-52 overflow-y-auto rounded-lg border border-white/[0.10] bg-zinc-900 shadow-2xl">
+                    {clientResults.length === 0 ? (
+                      <p className="px-3 py-3 text-xs text-zinc-500">Nenhum resultado para &ldquo;{clientSearch}&rdquo;</p>
+                    ) : clientResults.map(c => (
+                      <button key={c.id} type="button" onMouseDown={() => pickClient(c)}
+                        className="flex w-full flex-col items-start px-3 py-2 text-left hover:bg-white/[0.06] transition-colors border-b border-white/[0.03] last:border-0">
+                        <span className="text-xs font-medium text-zinc-200">{c.name}</span>
+                        <span className="text-[11px] text-zinc-600 font-mono">{fmtCnpj(c.cnpj)}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           <div>
