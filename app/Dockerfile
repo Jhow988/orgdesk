@@ -7,10 +7,11 @@ COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
 FROM base AS builder
+ARG BUILD_ID=unknown
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npx prisma generate
+RUN echo "BUILD_ID=$BUILD_ID" && npx prisma generate
 RUN npm run build
 
 FROM base AS runner

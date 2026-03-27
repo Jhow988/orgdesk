@@ -183,7 +183,7 @@ function NewTicketModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-lg rounded-2xl border border-white/[0.08] bg-zinc-950 shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
-          <h2 className="text-base font-semibold text-zinc-100">Novo Chamado</h2>
+          <h2 className="text-base font-semibold text-zinc-100">Novo Chamado <span className="text-[10px] text-zinc-700 font-mono">v20260327-6</span></h2>
           <button onClick={onClose} className="rounded-md p-1 text-zinc-500 hover:text-zinc-200 transition-colors">
             <X size={16} />
           </button>
