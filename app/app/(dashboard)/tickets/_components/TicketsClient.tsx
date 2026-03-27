@@ -106,29 +106,20 @@ function NewTicketModal({
   const [clientOpen,     setClientOpen]     = useState(false)
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [loadingClients, setLoadingClients] = useState(true)
-  const [loadError,      setLoadError]      = useState('')
   const clientInputRef = useRef<HTMLInputElement>(null)
 
-  // Load cache on mount, refresh every minute
+  // Load client cache on mount, refresh every minute
   useEffect(() => {
     let alive = true
     async function load() {
-      setLoadingClients(true)
-      setLoadError('')
-      try {
-        const rows = await getCachedClients()
-        if (alive) { setAllClients(rows); setLoadingClients(false) }
-      } catch {
-        if (alive) { setLoadError('Falha ao carregar clientes'); setLoadingClients(false) }
-      }
+      const rows = await getCachedClients()
+      if (alive) { setAllClients(rows); setLoadingClients(false) }
     }
     load()
     const interval = setInterval(async () => {
       _cachedAt = 0
-      try {
-        const rows = await getCachedClients()
-        if (alive) setAllClients(rows)
-      } catch { /* silent */ }
+      const rows = await getCachedClients()
+      if (alive) setAllClients(rows)
     }, CACHE_TTL)
     return () => { alive = false; clearInterval(interval) }
   }, [])
@@ -185,7 +176,7 @@ function NewTicketModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="w-full max-w-lg rounded-2xl border border-white/[0.08] bg-zinc-950 shadow-2xl">
         <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
-          <h2 className="text-base font-semibold text-zinc-100">Novo Chamado <span className="text-[10px] text-zinc-700 font-mono">v20260327-6</span></h2>
+          <h2 className="text-base font-semibold text-zinc-100">Novo Chamado</h2>
           <button onClick={onClose} className="rounded-md p-1 text-zinc-500 hover:text-zinc-200 transition-colors">
             <X size={16} />
           </button>
@@ -234,11 +225,6 @@ function NewTicketModal({
                 )}
               </div>
             )}
-            {/* Status de carregamento visível */}
-            {loadError
-              ? <p className="mt-1 text-[11px] text-red-400">{loadError}</p>
-              : !loadingClients && <p className="mt-1 text-[11px] text-zinc-600">{allClients.length} clientes carregados</p>
-            }
           </div>
 
           <div>
