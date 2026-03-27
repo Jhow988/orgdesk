@@ -77,24 +77,44 @@ function ClientCombobox({
   value:    string
   onChange: (id: string) => void
 }) {
-  const [search,  setSearch]  = useState('')
-  const [open,    setOpen]    = useState(false)
+  const [search, setSearch] = useState('')
+  const [open,   setOpen]   = useState(false)
 
   const selected = clients.find(c => c.id === value)
 
-  const filtered = useMemo(() =>
-    clients.filter(c =>
-      !search ||
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.cnpj.replace(/\D/g, '').includes(search.replace(/\D/g, ''))
-    ).slice(0, 50),
-    [clients, search]
-  )
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    if (!q) return clients.slice(0, 50)
+    return clients.filter(c =>
+      c.name.toLowerCase().includes(q) ||
+      c.cnpj.replace(/\D/g, '').includes(q.replace(/\D/g, ''))
+    ).slice(0, 50)
+  }, [clients, search])
 
   function pick(c: Client) {
     onChange(c.id)
     setSearch('')
     setOpen(false)
+  }
+
+  function clear() {
+    onChange('')
+    setSearch('')
+    setOpen(true)
+  }
+
+  // When a client is selected and dropdown is closed → show a badge
+  if (selected && !open) {
+    return (
+      <div className="flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2">
+        <span className="flex-1 text-xs text-zinc-200 truncate">{selected.name}</span>
+        <span className="text-[11px] text-zinc-600 font-mono">{fmtCnpj(selected.cnpj)}</span>
+        <button type="button" onClick={clear}
+          className="rounded p-0.5 text-zinc-600 hover:text-zinc-300 transition-colors flex-shrink-0">
+          <X size={11} />
+        </button>
+      </div>
+    )
   }
 
   return (
@@ -103,22 +123,13 @@ function ClientCombobox({
         <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
         <input
           autoComplete="off"
-          value={open ? search : (selected?.name ?? '')}
-          onChange={e => { setSearch(e.target.value); setOpen(true) }}
+          value={search}
+          onChange={e => setSearch(e.target.value)}
           onFocus={() => setOpen(true)}
           onBlur={() => setTimeout(() => setOpen(false), 150)}
           placeholder="Buscar cliente…"
           className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] pl-8 pr-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:border-indigo-500/40 focus:outline-none"
         />
-        {selected && !open && (
-          <button
-            type="button"
-            onClick={() => { onChange(''); setSearch(''); setOpen(true) }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-zinc-600 hover:text-zinc-300 transition-colors"
-          >
-            <X size={11} />
-          </button>
-        )}
       </div>
 
       {open && (
@@ -126,12 +137,8 @@ function ClientCombobox({
           {filtered.length === 0 ? (
             <p className="px-3 py-2 text-xs text-zinc-600">Nenhum cliente encontrado.</p>
           ) : filtered.map(c => (
-            <button
-              key={c.id}
-              type="button"
-              onMouseDown={() => pick(c)}
-              className="flex w-full flex-col items-start px-3 py-2 text-left hover:bg-white/[0.06] transition-colors"
-            >
+            <button key={c.id} type="button" onMouseDown={() => pick(c)}
+              className="flex w-full flex-col items-start px-3 py-2 text-left hover:bg-white/[0.06] transition-colors">
               <span className="text-xs font-medium text-zinc-200">{c.name}</span>
               <span className="text-[11px] text-zinc-600 font-mono">{fmtCnpj(c.cnpj)}</span>
             </button>
