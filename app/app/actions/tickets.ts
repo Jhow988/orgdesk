@@ -90,7 +90,6 @@ export async function getTicketAction(id: string) {
         assignee: { select: { id: true, name: true } },
         messages: {
           orderBy: { created_at: 'asc' },
-          include: { author: { select: { id: true, name: true, email: true } } },
         },
       },
     }),
@@ -123,15 +122,24 @@ export async function getTicketAction(id: string) {
     assignee: ticket.assignee
       ? { id: ticket.assignee.id, name: ticket.assignee.name ?? '' }
       : null,
-    messages: ticket.messages.map(m => ({
-      id:         m.id,
-      body:       m.body,
-      isInternal: m.is_internal,
-      isAuto:     m.is_auto,
-      authorName: m.author.name ?? m.author.email ?? 'Equipe',
-      authorType: m.author_type,
-      createdAt:  m.created_at.toISOString(),
-    })),
+    messages: ticket.messages.map(m => {
+      let authorName = 'Equipe'
+      if (m.author_type === 'client') {
+        authorName = ticket.client.name
+      } else {
+        const member = orgMembers.find(mb => mb.user.id === m.author_id)
+        authorName = member?.user.name ?? member?.user.email ?? 'Equipe'
+      }
+      return {
+        id:         m.id,
+        body:       m.body,
+        isInternal: m.is_internal,
+        isAuto:     m.is_auto,
+        authorName,
+        authorType: m.author_type,
+        createdAt:  m.created_at.toISOString(),
+      }
+    }),
     orgMembers: orgMembers.map(m => ({
       id:   m.user.id,
       name: m.user.name ?? m.user.email ?? '',
