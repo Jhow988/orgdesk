@@ -228,19 +228,17 @@ export function TicketDetail({ ticket: initial }: { ticket: Ticket }) {
       {/* Body */}
       <div className="flex-1 min-h-0 flex gap-0 overflow-hidden px-6 pb-6">
 
-        {/* Thread + Reply */}
-        <div className="flex-1 min-w-0 flex flex-col gap-4 overflow-hidden">
-          {/* Messages */}
-          <div className="flex-1 overflow-y-auto pr-2 space-y-5">
+        {/* Thread + Reply — single scrollable column */}
+        <div className="flex-1 min-w-0 overflow-y-auto pr-2">
+          <div className="space-y-5 pb-4">
             {ticket.messages.map(m => (
               <MessageBubble key={m.id} msg={m} />
             ))}
-            <div ref={messagesEndRef} />
           </div>
 
-          {/* Reply box */}
-          {!isClosed && (
-            <form onSubmit={handleReply} className="rounded-xl border border-white/[0.08] bg-white/[0.02]">
+          {/* Reply box — always below last message */}
+          {!isClosed ? (
+            <form onSubmit={handleReply} className="rounded-xl border border-white/[0.08] bg-white/[0.02] mt-2">
               <textarea
                 value={reply}
                 onChange={e => setReply(e.target.value)}
@@ -280,10 +278,10 @@ export function TicketDetail({ ticket: initial }: { ticket: Ticket }) {
               {replyError && (
                 <p className="px-4 pb-2 text-xs text-red-400">{replyError}</p>
               )}
+              <div ref={messagesEndRef} />
             </form>
-          )}
-          {isClosed && (
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3 text-xs text-zinc-600 text-center">
+          ) : (
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3 text-xs text-zinc-600 text-center mt-2">
               Este chamado está fechado.
             </div>
           )}
