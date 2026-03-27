@@ -10,46 +10,91 @@ async function requireOrg() {
   return session.user.orgId!
 }
 
-export interface TechSheet {
-  id:            string
-  clientId:      string
-  clientName:    string
-  clientCnpj:    string
-  remoteAccess:  string
-  network:       string
-  software:      string
-  contacts:      string
-  notes:         string
-  updatedAt:     string
+export interface TechSheetData {
+  remoteAccess: string; remoteTool: string; remoteId: string; remotePassword: string; remoteNotes: string
+  network:      string; gateway: string; dnsPrimary: string; dhcpRange: string; networkNotes: string
+  software:     string; softwareNotes: string
+  contacts:     string; contactName: string; contactRole: string; contactPhone: string; contactEmail: string
+  notes:        string
 }
 
-// List all clients with info on whether they have a sheet
-export async function listTechSheetsAction() {
-  const orgId = await requireOrg()
+export interface TechSheet extends TechSheetData {
+  id:        string
+  clientId:  string
+  clientName: string
+  clientCnpj: string
+  updatedAt: string
+}
 
+export interface ClientWithSheet {
+  id:             string
+  name:           string
+  cnpj:           string
+  hasSheet:       boolean
+  remoteTool:     string | null
+  remoteId:       string | null
+  gateway:        string | null
+  contactName:    string | null
+  contactRole:    string | null
+  sheetUpdatedAt: string | null
+}
+
+function mapSheet(sheet: any, client: { id: string; name: string; cnpj: string }): TechSheet {
+  return {
+    id:           sheet.id,
+    clientId:     client.id,
+    clientName:   client.name,
+    clientCnpj:   client.cnpj,
+    remoteAccess: '',
+    remoteTool:   sheet.remote_tool   ?? '',
+    remoteId:     sheet.remote_id     ?? '',
+    remotePassword: sheet.remote_password ?? '',
+    remoteNotes:  sheet.remote_notes  ?? '',
+    network:      '',
+    gateway:      sheet.gateway       ?? '',
+    dnsPrimary:   sheet.dns_primary   ?? '',
+    dhcpRange:    sheet.dhcp_range    ?? '',
+    networkNotes: sheet.network_notes ?? '',
+    software:     '',
+    softwareNotes: sheet.software_notes ?? '',
+    contacts:     '',
+    contactName:  sheet.contact_name  ?? '',
+    contactRole:  sheet.contact_role  ?? '',
+    contactPhone: sheet.contact_phone ?? '',
+    contactEmail: sheet.contact_email ?? '',
+    notes:        sheet.notes         ?? '',
+    updatedAt:    sheet.updated_at.toISOString(),
+  }
+}
+
+export async function listTechSheetsAction(): Promise<ClientWithSheet[]> {
+  const orgId = await requireOrg()
   const clients = await prisma.client.findMany({
     where:   { organization_id: orgId },
     select:  {
       id: true, name: true, cnpj: true,
-      tech_sheet: { select: { id: true, updated_at: true } },
+      tech_sheet: {
+        select: { id: true, remote_tool: true, remote_id: true, gateway: true, contact_name: true, contact_role: true, updated_at: true },
+      },
     },
     orderBy: { name: 'asc' },
   })
-
   return clients.map(c => ({
-    id:         c.id,
-    name:       c.name,
-    cnpj:       c.cnpj,
-    hasSheet:   !!c.tech_sheet,
+    id:             c.id,
+    name:           c.name,
+    cnpj:           c.cnpj,
+    hasSheet:       !!c.tech_sheet,
+    remoteTool:     c.tech_sheet?.remote_tool  ?? null,
+    remoteId:       c.tech_sheet?.remote_id    ?? null,
+    gateway:        c.tech_sheet?.gateway      ?? null,
+    contactName:    c.tech_sheet?.contact_name ?? null,
+    contactRole:    c.tech_sheet?.contact_role ?? null,
     sheetUpdatedAt: c.tech_sheet?.updated_at?.toISOString() ?? null,
   }))
 }
 
-// Get a single client's tech sheet (creates empty if not exists)
 export async function getTechSheetAction(clientId: string): Promise<TechSheet> {
   const orgId = await requireOrg()
-
-  // Verify client belongs to org
   const client = await prisma.client.findFirst({
     where: { id: clientId, organization_id: orgId },
     select: { id: true, name: true, cnpj: true },
@@ -61,37 +106,13 @@ export async function getTechSheetAction(clientId: string): Promise<TechSheet> {
     create: { organization_id: orgId, client_id: clientId },
     update: {},
   })
-
-  return {
-    id:           sheet.id,
-    clientId:     client.id,
-    clientName:   client.name,
-    clientCnpj:   client.cnpj,
-    remoteAccess: sheet.remote_access ?? '',
-    network:      sheet.network ?? '',
-    software:     sheet.software ?? '',
-    contacts:     sheet.contacts ?? '',
-    notes:        sheet.notes ?? '',
-    updatedAt:    sheet.updated_at.toISOString(),
-  }
+  return mapSheet(sheet, client)
 }
 
-// Save tech sheet fields
-export async function saveTechSheetAction(
-  clientId: string,
-  data: {
-    remoteAccess?: string
-    network?:      string
-    software?:     string
-    contacts?:     string
-    notes?:        string
-  },
-) {
+export async function saveTechSheetAction(clientId: string, data: Partial<TechSheetData>) {
   const orgId = await requireOrg()
-
   const client = await prisma.client.findFirst({
-    where: { id: clientId, organization_id: orgId },
-    select: { id: true },
+    where: { id: clientId, organization_id: orgId }, select: { id: true },
   })
   if (!client) throw new Error('Cliente não encontrado')
 
@@ -100,22 +121,48 @@ export async function saveTechSheetAction(
     create: {
       organization_id: orgId,
       client_id:       clientId,
-      remote_access:   data.remoteAccess ?? '',
-      network:         data.network      ?? '',
-      software:        data.software     ?? '',
-      contacts:        data.contacts     ?? '',
-      notes:           data.notes        ?? '',
+      remote_tool:     data.remoteTool    ?? null,
+      remote_id:       data.remoteId      ?? null,
+      remote_password: data.remotePassword ?? null,
+      remote_notes:    data.remoteNotes   ?? null,
+      gateway:         data.gateway       ?? null,
+      dns_primary:     data.dnsPrimary    ?? null,
+      dhcp_range:      data.dhcpRange     ?? null,
+      network_notes:   data.networkNotes  ?? null,
+      software_notes:  data.softwareNotes ?? null,
+      contact_name:    data.contactName   ?? null,
+      contact_role:    data.contactRole   ?? null,
+      contact_phone:   data.contactPhone  ?? null,
+      contact_email:   data.contactEmail  ?? null,
+      notes:           data.notes         ?? null,
     },
     update: {
-      remote_access: data.remoteAccess,
-      network:       data.network,
-      software:      data.software,
-      contacts:      data.contacts,
-      notes:         data.notes,
-      updated_at:    new Date(),
+      remote_tool:     data.remoteTool,
+      remote_id:       data.remoteId,
+      remote_password: data.remotePassword,
+      remote_notes:    data.remoteNotes,
+      gateway:         data.gateway,
+      dns_primary:     data.dnsPrimary,
+      dhcp_range:      data.dhcpRange,
+      network_notes:   data.networkNotes,
+      software_notes:  data.softwareNotes,
+      contact_name:    data.contactName,
+      contact_role:    data.contactRole,
+      contact_phone:   data.contactPhone,
+      contact_email:   data.contactEmail,
+      notes:           data.notes,
+      updated_at:      new Date(),
     },
   })
+  revalidatePath('/tickets/fichas')
+  return { ok: true }
+}
 
+export async function deleteTechSheetAction(clientId: string) {
+  const orgId = await requireOrg()
+  await prisma.clientTechSheet.deleteMany({
+    where: { client_id: clientId, organization_id: orgId },
+  })
   revalidatePath('/tickets/fichas')
   return { ok: true }
 }

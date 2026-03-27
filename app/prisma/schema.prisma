@@ -321,11 +321,31 @@ model ClientTechSheet {
   id              String   @id @default(cuid())
   organization_id String
   client_id       String   @unique
-  remote_access   String?  @db.Text
-  network         String?  @db.Text
-  software        String?  @db.Text
-  contacts        String?  @db.Text
+
+  // Acesso Remoto
+  remote_tool     String?
+  remote_id       String?
+  remote_password String?
+  remote_notes    String?  @db.Text
+
+  // Rede
+  gateway         String?
+  dns_primary     String?
+  dhcp_range      String?
+  network_notes   String?  @db.Text
+
+  // Software / Servidores
+  software_notes  String?  @db.Text
+
+  // Contato principal
+  contact_name    String?
+  contact_role    String?
+  contact_phone   String?
+  contact_email   String?
+
+  // Anotações gerais
   notes           String?  @db.Text
+
   created_at      DateTime @default(now())
   updated_at      DateTime @updatedAt
 
