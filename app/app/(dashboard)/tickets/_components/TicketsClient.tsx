@@ -6,7 +6,7 @@ import {
   MessageSquare, Search, Plus, X, AlertCircle,
   Clock, CheckCircle2, CircleDot, RefreshCw,
 } from 'lucide-react'
-import { createTicketAction, fetchAllClientsAction } from '@/app/actions/tickets'
+import { createTicketAction } from '@/app/actions/tickets'
 
 // ─── Module-level client cache (1 min TTL) ─────────────────────────────────────
 let _cachedClients: Client[] = []
@@ -17,7 +17,9 @@ async function getCachedClients(): Promise<Client[]> {
   if (_cachedClients.length > 0 && Date.now() - _cachedAt < CACHE_TTL) {
     return _cachedClients
   }
-  const rows = await fetchAllClientsAction()
+  const res = await fetch('/api/tickets/clients')
+  if (!res.ok) return _cachedClients
+  const rows: Client[] = await res.json()
   _cachedClients = rows
   _cachedAt = Date.now()
   return rows
@@ -203,7 +205,7 @@ function NewTicketModal({
                   onChange={e => { setClientSearch(e.target.value); setClientOpen(true) }}
                   onFocus={() => setClientOpen(true)}
                   onBlur={() => setTimeout(() => setClientOpen(false), 200)}
-                  placeholder={loadingClients ? 'Carregando clientes…' : 'Digite ao menos 3 letras para buscar…'}
+                  placeholder={loadingClients ? 'Carregando clientes…' : `Digite ao menos 3 letras para buscar… (${allClients.length} clientes)`}
                   disabled={loadingClients}
                   className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] pl-8 pr-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:border-indigo-500/40 focus:outline-none disabled:opacity-50"
                 />
