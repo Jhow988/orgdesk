@@ -10,26 +10,15 @@ async function requireOrg() {
   return { orgId: session.user.orgId!, userId: session.user.id! }
 }
 
-// ─── Search clients ────────────────────────────────────────────────────────────
+// ─── Fetch all clients for modal cache ─────────────────────────────────────────
 
-export async function searchClientsAction(q: string) {
+export async function fetchAllClientsAction() {
   const { orgId } = await requireOrg()
-  if (!q || q.trim().length < 3) return []
-
-  const term = q.trim()
-  const rows = await prisma.$queryRaw<{ id: string; name: string; cnpj: string }[]>`
-    SELECT id, name, cnpj FROM clients
-    WHERE organization_id = ${orgId}
-      AND is_active = true
-      AND (
-        name ILIKE ${term + '%'}
-        OR cnpj ILIKE ${term + '%'}
-        OR cnpj LIKE ${term.replace(/\D/g, '') + '%'}
-      )
-    ORDER BY name ASC
-    LIMIT 60
-  `
-  return rows
+  return prisma.client.findMany({
+    where:   { organization_id: orgId, is_active: true },
+    select:  { id: true, name: true, cnpj: true },
+    orderBy: { name: 'asc' },
+  })
 }
 
 // ─── List ──────────────────────────────────────────────────────────────────────

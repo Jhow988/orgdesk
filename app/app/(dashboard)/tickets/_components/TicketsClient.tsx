@@ -1,12 +1,27 @@
 'use client'
 
-import { useState, useMemo, useTransition, useRef, useEffect, useCallback } from 'react'
+import { useState, useMemo, useTransition, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   MessageSquare, Search, Plus, X, AlertCircle,
   Clock, CheckCircle2, CircleDot, RefreshCw,
 } from 'lucide-react'
-import { createTicketAction, searchClientsAction } from '@/app/actions/tickets'
+import { createTicketAction, fetchAllClientsAction } from '@/app/actions/tickets'
+
+// ─── Module-level client cache (1 min TTL) ─────────────────────────────────────
+let _cachedClients: Client[] = []
+let _cachedAt = 0
+const CACHE_TTL = 60_000
+
+async function getCachedClients(): Promise<Client[]> {
+  if (_cachedClients.length > 0 && Date.now() - _cachedAt < CACHE_TTL) {
+    return _cachedClients
+  }
+  const rows = await fetchAllClientsAction()
+  _cachedClients = rows
+  _cachedAt = Date.now()
+  return rows
+}
 
 type Status   = 'OPEN' | 'IN_PROGRESS' | 'WAITING_CLIENT' | 'RESOLVED' | 'CLOSED'
 type Priority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
@@ -85,31 +100,41 @@ function NewTicketModal({
   })
   const [error,          setError]          = useState('')
   const [clientSearch,   setClientSearch]   = useState('')
-  const [clientResults,  setClientResults]  = useState<Client[]>([])
+  const [allClients,     setAllClients]     = useState<Client[]>([])
   const [clientOpen,     setClientOpen]     = useState(false)
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
-  const [searching,      setSearching]      = useState(false)
+  const [loadingClients, setLoadingClients] = useState(true)
   const clientInputRef = useRef<HTMLInputElement>(null)
-  const debounceRef    = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const handleClientSearch = useCallback((value: string) => {
-    setClientSearch(value)
-    setClientOpen(true)
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    if (value.trim().length < 3) { setClientResults([]); return }
-    debounceRef.current = setTimeout(async () => {
-      setSearching(true)
-      const rows = await searchClientsAction(value.trim())
-      setClientResults(rows)
-      setSearching(false)
-    }, 300)
+  // Load cache on mount, refresh every minute
+  useEffect(() => {
+    let alive = true
+    async function load() {
+      setLoadingClients(true)
+      const rows = await getCachedClients()
+      if (alive) { setAllClients(rows); setLoadingClients(false) }
+    }
+    load()
+    const interval = setInterval(async () => {
+      _cachedAt = 0 // force refresh
+      const rows = await getCachedClients()
+      if (alive) setAllClients(rows)
+    }, CACHE_TTL)
+    return () => { alive = false; clearInterval(interval) }
   }, [])
+
+  const q = clientSearch.trim().toLowerCase()
+  const clientResults = q.length >= 3
+    ? allClients.filter(c =>
+        c.name.toLowerCase().startsWith(q) ||
+        c.cnpj.replace(/\D/g, '').startsWith(q.replace(/\D/g, ''))
+      ).slice(0, 60)
+    : []
 
   function pickClient(c: Client) {
     setSelectedClient(c)
     setForm(f => ({ ...f, clientId: c.id }))
     setClientSearch('')
-    setClientResults([])
     setClientOpen(false)
   }
 
@@ -117,7 +142,6 @@ function NewTicketModal({
     setSelectedClient(null)
     setForm(f => ({ ...f, clientId: '' }))
     setClientSearch('')
-    setClientResults([])
     setClientOpen(true)
     setTimeout(() => clientInputRef.current?.focus(), 0)
   }
@@ -176,17 +200,16 @@ function NewTicketModal({
                   type="text"
                   autoComplete="off"
                   value={clientSearch}
-                  onChange={e => handleClientSearch(e.target.value)}
-                  onFocus={() => { if (clientSearch.trim().length >= 3) setClientOpen(true) }}
+                  onChange={e => { setClientSearch(e.target.value); setClientOpen(true) }}
+                  onFocus={() => setClientOpen(true)}
                   onBlur={() => setTimeout(() => setClientOpen(false), 200)}
-                  placeholder="Digite ao menos 3 letras para buscar…"
-                  className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] pl-8 pr-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:border-indigo-500/40 focus:outline-none"
+                  placeholder={loadingClients ? 'Carregando clientes…' : 'Digite ao menos 3 letras para buscar…'}
+                  disabled={loadingClients}
+                  className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] pl-8 pr-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:border-indigo-500/40 focus:outline-none disabled:opacity-50"
                 />
                 {clientOpen && clientSearch.trim().length >= 3 && (
                   <div className="absolute z-30 mt-1 w-full max-h-52 overflow-y-auto rounded-lg border border-white/[0.10] bg-zinc-900 shadow-2xl">
-                    {searching ? (
-                      <p className="px-3 py-3 text-xs text-zinc-500">Buscando…</p>
-                    ) : clientResults.length === 0 ? (
+                    {clientResults.length === 0 ? (
                       <p className="px-3 py-3 text-xs text-zinc-500">Nenhum resultado para &ldquo;{clientSearch}&rdquo;</p>
                     ) : clientResults.map(c => (
                       <button key={c.id} type="button" onMouseDown={() => pickClient(c)}
