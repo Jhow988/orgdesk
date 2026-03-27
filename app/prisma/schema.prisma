@@ -235,7 +235,6 @@ model User {
   memberships      Membership[]
   client_contacts  ClientContact[]
   assigned_tickets Ticket[]        @relation("AssignedTickets")
-  ticket_messages  TicketMessage[]
   notifications    Notification[]
   activity_log     ActivityLog[]
 
@@ -504,7 +503,6 @@ model TicketMessage {
   updated_at  DateTime @updatedAt
 
   ticket      Ticket             @relation(fields: [ticket_id], references: [id])
-  author      User               @relation(fields: [author_id], references: [id])
   attachments TicketAttachment[]
 
   @@index([ticket_id])

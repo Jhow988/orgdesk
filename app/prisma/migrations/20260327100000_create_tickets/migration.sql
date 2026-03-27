@@ -43,6 +43,7 @@ CREATE INDEX IF NOT EXISTS "tickets_organization_id_status_idx"            ON "t
 CREATE INDEX IF NOT EXISTS "tickets_organization_id_assigned_to_idx"       ON "tickets"("organization_id", "assigned_to");
 
 -- Create ticket_messages table
+-- author_id is polymorphic: can be a user ID or client ID (author_type distinguishes)
 CREATE TABLE IF NOT EXISTS "ticket_messages" (
     "id"          TEXT         NOT NULL,
     "ticket_id"   TEXT         NOT NULL,
@@ -55,9 +56,7 @@ CREATE TABLE IF NOT EXISTS "ticket_messages" (
     "updated_at"  TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "ticket_messages_pkey" PRIMARY KEY ("id"),
     CONSTRAINT "ticket_messages_ticket_id_fkey"
-      FOREIGN KEY ("ticket_id") REFERENCES "tickets"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
-    CONSTRAINT "ticket_messages_author_id_fkey"
-      FOREIGN KEY ("author_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE
+      FOREIGN KEY ("ticket_id") REFERENCES "tickets"("id") ON DELETE RESTRICT ON UPDATE CASCADE
 );
 
 CREATE INDEX IF NOT EXISTS "ticket_messages_ticket_id_idx" ON "ticket_messages"("ticket_id");
