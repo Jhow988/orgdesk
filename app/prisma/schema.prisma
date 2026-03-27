@@ -346,6 +346,11 @@ model ClientTechSheet {
   // Anotações gerais
   notes           String?  @db.Text
 
+  // Informações adicionais e histórico
+  additional_info  String?  @db.Text
+  updated_by_name  String?
+  updated_by_id    String?
+
   created_at      DateTime @default(now())
   updated_at      DateTime @updatedAt
 

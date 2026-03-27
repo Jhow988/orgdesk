@@ -16,6 +16,7 @@ export interface TechSheetData {
   software:     string; softwareNotes: string
   contacts:     string; contactName: string; contactRole: string; contactPhone: string; contactEmail: string
   notes:        string
+  additionalInfo: string
 }
 
 export interface TechSheet extends TechSheetData {
@@ -23,7 +24,10 @@ export interface TechSheet extends TechSheetData {
   clientId:  string
   clientName: string
   clientCnpj: string
-  updatedAt: string
+  createdAt:     string
+  updatedAt:     string
+  updatedByName: string | null
+  updatedById:   string | null
 }
 
 export interface ClientWithSheet {
@@ -41,29 +45,33 @@ export interface ClientWithSheet {
 
 function mapSheet(sheet: any, client: { id: string; name: string; cnpj: string }): TechSheet {
   return {
-    id:           sheet.id,
-    clientId:     client.id,
-    clientName:   client.name,
-    clientCnpj:   client.cnpj,
-    remoteAccess: '',
-    remoteTool:   sheet.remote_tool   ?? '',
-    remoteId:     sheet.remote_id     ?? '',
-    remotePassword: sheet.remote_password ?? '',
-    remoteNotes:  sheet.remote_notes  ?? '',
-    network:      '',
-    gateway:      sheet.gateway       ?? '',
-    dnsPrimary:   sheet.dns_primary   ?? '',
-    dhcpRange:    sheet.dhcp_range    ?? '',
-    networkNotes: sheet.network_notes ?? '',
-    software:     '',
-    softwareNotes: sheet.software_notes ?? '',
-    contacts:     '',
-    contactName:  sheet.contact_name  ?? '',
-    contactRole:  sheet.contact_role  ?? '',
-    contactPhone: sheet.contact_phone ?? '',
-    contactEmail: sheet.contact_email ?? '',
-    notes:        sheet.notes         ?? '',
-    updatedAt:    sheet.updated_at.toISOString(),
+    id:             sheet.id,
+    clientId:       client.id,
+    clientName:     client.name,
+    clientCnpj:     client.cnpj,
+    remoteAccess:   '',
+    remoteTool:     sheet.remote_tool      ?? '',
+    remoteId:       sheet.remote_id        ?? '',
+    remotePassword: sheet.remote_password  ?? '',
+    remoteNotes:    sheet.remote_notes     ?? '',
+    network:        '',
+    gateway:        sheet.gateway          ?? '',
+    dnsPrimary:     sheet.dns_primary      ?? '',
+    dhcpRange:      sheet.dhcp_range       ?? '',
+    networkNotes:   sheet.network_notes    ?? '',
+    software:       '',
+    softwareNotes:  sheet.software_notes   ?? '',
+    contacts:       '',
+    contactName:    sheet.contact_name     ?? '',
+    contactRole:    sheet.contact_role     ?? '',
+    contactPhone:   sheet.contact_phone    ?? '',
+    contactEmail:   sheet.contact_email    ?? '',
+    notes:          sheet.notes            ?? '',
+    additionalInfo: sheet.additional_info  ?? '',
+    createdAt:      sheet.created_at.toISOString(),
+    updatedAt:      sheet.updated_at.toISOString(),
+    updatedByName:  sheet.updated_by_name  ?? null,
+    updatedById:    sheet.updated_by_id    ?? null,
   }
 }
 
@@ -110,11 +118,16 @@ export async function getTechSheetAction(clientId: string): Promise<TechSheet> {
 }
 
 export async function saveTechSheetAction(clientId: string, data: Partial<TechSheetData>) {
-  const orgId = await requireOrg()
+  const session = await auth()
+  if (!session?.user?.orgId) throw new Error('Não autenticado')
+  const orgId = session.user.orgId!
   const client = await prisma.client.findFirst({
     where: { id: clientId, organization_id: orgId }, select: { id: true },
   })
   if (!client) throw new Error('Cliente não encontrado')
+
+  const updatedByName = session.user.name ?? session.user.email ?? null
+  const updatedById   = session.user.id ?? null
 
   await prisma.clientTechSheet.upsert({
     where:  { client_id: clientId },
@@ -135,6 +148,9 @@ export async function saveTechSheetAction(clientId: string, data: Partial<TechSh
       contact_phone:   data.contactPhone  ?? null,
       contact_email:   data.contactEmail  ?? null,
       notes:           data.notes         ?? null,
+      additional_info: data.additionalInfo ?? null,
+      updated_by_name: updatedByName,
+      updated_by_id:   updatedById,
     },
     update: {
       remote_tool:     data.remoteTool,
@@ -151,6 +167,9 @@ export async function saveTechSheetAction(clientId: string, data: Partial<TechSh
       contact_phone:   data.contactPhone,
       contact_email:   data.contactEmail,
       notes:           data.notes,
+      additional_info: data.additionalInfo,
+      updated_by_name: updatedByName,
+      updated_by_id:   updatedById,
       updated_at:      new Date(),
     },
   })

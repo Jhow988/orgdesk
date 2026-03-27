@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import {
   Search, Plus, Eye, Pencil, Trash2, X, Copy, Check,
-  Monitor, Wifi, Package, Users, FileText, Save,
+  Monitor, Wifi, Package, Users, FileText, Save, Info, Clock,
 } from 'lucide-react'
 import {
   getTechSheetAction, saveTechSheetAction, deleteTechSheetAction,
@@ -56,7 +56,7 @@ function Field({ label, value, secret }: { label: string; value?: string; secret
 
 // ─── Modal ─────────────────────────────────────────────────────────────────────
 
-type Tab = 'access' | 'software' | 'contacts'
+type Tab = 'access' | 'software' | 'contacts' | 'extra'
 
 function SheetModal({
   client,
@@ -104,9 +104,10 @@ function SheetModal({
   const lbl = 'block mb-1 text-[10px] font-bold uppercase tracking-wider text-zinc-600'
 
   const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
-    { id: 'access',   label: 'Rede e Acesso',      icon: Monitor },
-    { id: 'software', label: 'Hardware / Software', icon: Package },
-    { id: 'contacts', label: 'Contatos',            icon: Users   },
+    { id: 'access',   label: 'Rede e Acesso',      icon: Monitor  },
+    { id: 'software', label: 'Hardware / Software', icon: Package  },
+    { id: 'contacts', label: 'Contatos',            icon: Users    },
+    { id: 'extra',    label: 'Informações Extras',  icon: Info     },
   ]
 
   return (
@@ -173,7 +174,7 @@ function SheetModal({
                 <textarea rows={12} value={form.softwareNotes ?? ''} onChange={e => set('softwareNotes', e.target.value)} className={ta} placeholder={"Servidor AD: Windows Server 2019 — 192.168.1.10\nERP: Totvs v12 — porta 1433\nBackup: nuvem 22:00h\nAntivírus: Kaspersky\nImpressoras: …"} />
                 <div><label className={lbl}>Anotações gerais</label><textarea rows={4} value={form.notes ?? ''} onChange={e => set('notes', e.target.value)} className={ta} placeholder="Observações diversas…" /></div>
               </section>
-            ) : (
+            ) : tab === 'contacts' ? (
               <section className="space-y-4 max-w-lg">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-amber-400 border-b border-amber-500/20 pb-2 flex items-center gap-2"><Users size={13} /> Contato Principal</h4>
                 <div className="grid grid-cols-2 gap-3">
@@ -182,6 +183,11 @@ function SheetModal({
                   <div><label className={lbl}>Telefone</label><input value={form.contactPhone ?? ''} onChange={e => set('contactPhone', e.target.value)} className={inp} placeholder="(11) 99999-9999" /></div>
                   <div><label className={lbl}>E-mail</label><input value={form.contactEmail ?? ''} onChange={e => set('contactEmail', e.target.value)} className={inp} placeholder="ti@empresa.com.br" /></div>
                 </div>
+              </section>
+            ) : (
+              <section className="space-y-4 max-w-2xl">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-sky-400 border-b border-sky-500/20 pb-2 flex items-center gap-2"><Info size={13} /> Informações Adicionais</h4>
+                <textarea rows={10} value={form.additionalInfo ?? ''} onChange={e => set('additionalInfo', e.target.value)} className={ta} placeholder={"Licenças especiais, contratos, senhas de roteador, observações de infraestrutura…"} />
               </section>
             )
 
@@ -226,7 +232,7 @@ function SheetModal({
                   : <p className="text-xs text-zinc-700">Nenhuma informação cadastrada.</p>}
                 {sheet.notes && <><h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500 border-b border-white/[0.06] pb-2 flex items-center gap-2 mt-6"><FileText size={13} /> Anotações Gerais</h4><p className="text-sm text-zinc-400 whitespace-pre-wrap">{sheet.notes}</p></>}
               </section>
-            ) : (
+            ) : tab === 'contacts' ? (
               <section className="max-w-lg space-y-4">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-amber-400 border-b border-amber-500/20 pb-2 flex items-center gap-2"><Users size={13} /> Contato Principal</h4>
                 {(sheet.contactName || sheet.contactPhone || sheet.contactEmail) ? (
@@ -237,6 +243,34 @@ function SheetModal({
                   </div>
                 ) : <p className="text-xs text-zinc-700">Nenhum contato cadastrado.</p>}
               </section>
+            ) : (
+              <div className="max-w-2xl space-y-6">
+                <section className="space-y-3">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-sky-400 border-b border-sky-500/20 pb-2 flex items-center gap-2"><Info size={13} /> Informações Adicionais</h4>
+                  {sheet.additionalInfo
+                    ? <p className="text-sm text-zinc-300 whitespace-pre-wrap leading-relaxed bg-white/[0.02] border border-white/[0.06] rounded-xl p-4">{sheet.additionalInfo}</p>
+                    : <p className="text-xs text-zinc-700">Nenhuma informação adicional cadastrada.</p>}
+                </section>
+                <section className="space-y-3">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-zinc-500 border-b border-white/[0.06] pb-2 flex items-center gap-2"><Clock size={13} /> Histórico de Alterações</h4>
+                  <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-zinc-600">Criado em</span>
+                      <span className="text-zinc-400">{new Date(sheet.createdAt).toLocaleString('pt-BR')}</span>
+                    </div>
+                    <div className="flex justify-between border-t border-white/[0.04] pt-2">
+                      <span className="text-zinc-600">Última alteração</span>
+                      <span className="text-zinc-400">{new Date(sheet.updatedAt).toLocaleString('pt-BR')}</span>
+                    </div>
+                    {sheet.updatedByName && (
+                      <div className="flex justify-between border-t border-white/[0.04] pt-2">
+                        <span className="text-zinc-600">Alterado por</span>
+                        <span className="text-zinc-300 font-medium">{sheet.updatedByName}</span>
+                      </div>
+                    )}
+                  </div>
+                </section>
+              </div>
             )
           )}
         </div>
