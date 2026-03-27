@@ -68,6 +68,80 @@ function fmtCnpj(cnpj: string) {
 
 // ─── New Ticket Modal ──────────────────────────────────────────────────────────
 
+function ClientCombobox({
+  clients,
+  value,
+  onChange,
+}: {
+  clients:  Client[]
+  value:    string
+  onChange: (id: string) => void
+}) {
+  const [search,  setSearch]  = useState('')
+  const [open,    setOpen]    = useState(false)
+
+  const selected = clients.find(c => c.id === value)
+
+  const filtered = useMemo(() =>
+    clients.filter(c =>
+      !search ||
+      c.name.toLowerCase().includes(search.toLowerCase()) ||
+      c.cnpj.replace(/\D/g, '').includes(search.replace(/\D/g, ''))
+    ).slice(0, 50),
+    [clients, search]
+  )
+
+  function pick(c: Client) {
+    onChange(c.id)
+    setSearch('')
+    setOpen(false)
+  }
+
+  return (
+    <div className="relative">
+      <div className="relative">
+        <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
+        <input
+          autoComplete="off"
+          value={open ? search : (selected?.name ?? '')}
+          onChange={e => { setSearch(e.target.value); setOpen(true) }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => setTimeout(() => setOpen(false), 150)}
+          placeholder="Buscar cliente…"
+          className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] pl-8 pr-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:border-indigo-500/40 focus:outline-none"
+        />
+        {selected && !open && (
+          <button
+            type="button"
+            onClick={() => { onChange(''); setSearch(''); setOpen(true) }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-zinc-600 hover:text-zinc-300 transition-colors"
+          >
+            <X size={11} />
+          </button>
+        )}
+      </div>
+
+      {open && (
+        <div className="absolute z-20 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border border-white/[0.10] bg-zinc-900 shadow-xl">
+          {filtered.length === 0 ? (
+            <p className="px-3 py-2 text-xs text-zinc-600">Nenhum cliente encontrado.</p>
+          ) : filtered.map(c => (
+            <button
+              key={c.id}
+              type="button"
+              onMouseDown={() => pick(c)}
+              className="flex w-full flex-col items-start px-3 py-2 text-left hover:bg-white/[0.06] transition-colors"
+            >
+              <span className="text-xs font-medium text-zinc-200">{c.name}</span>
+              <span className="text-[11px] text-zinc-600 font-mono">{fmtCnpj(c.cnpj)}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function NewTicketModal({
   clients,
   onClose,
@@ -86,16 +160,6 @@ function NewTicketModal({
     category:  '',
   })
   const [error, setError] = useState('')
-  const [search, setSearch] = useState('')
-
-  const filteredClients = useMemo(() =>
-    clients.filter(c =>
-      !search ||
-      c.name.toLowerCase().includes(search.toLowerCase()) ||
-      c.cnpj.includes(search.replace(/\D/g, ''))
-    ),
-    [clients, search]
-  )
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -131,31 +195,14 @@ function NewTicketModal({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Client search */}
+          {/* Client combobox */}
           <div>
             <label className="block mb-1.5 text-xs font-medium text-zinc-400">Cliente</label>
-            <div className="relative mb-1.5">
-              <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
-              <input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Buscar cliente…"
-                className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] pl-8 pr-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:border-white/20 focus:outline-none"
-              />
-            </div>
-            <select
+            <ClientCombobox
+              clients={clients}
               value={form.clientId}
-              onChange={e => setForm(f => ({ ...f, clientId: e.target.value }))}
-              size={4}
-              className="w-full rounded-lg border border-white/[0.08] bg-zinc-900 text-xs text-zinc-200 focus:outline-none overflow-y-auto"
-            >
-              <option value="" disabled>— selecione —</option>
-              {filteredClients.map(c => (
-                <option key={c.id} value={c.id} className="px-3 py-1.5">
-                  {c.name} · {fmtCnpj(c.cnpj)}
-                </option>
-              ))}
-            </select>
+              onChange={id => setForm(f => ({ ...f, clientId: id }))}
+            />
           </div>
 
           <div>
