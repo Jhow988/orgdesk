@@ -133,12 +133,14 @@ function NewTicketModal({
     return () => { alive = false; clearInterval(interval) }
   }, [])
 
-  const q = clientSearch.trim().toLowerCase()
+  const q       = clientSearch.trim().toLowerCase()
+  const qDigits = q.replace(/\D/g, '')
   const clientResults = q.length >= 3
-    ? allClients.filter(c =>
-        c.name.toLowerCase().includes(q) ||
-        c.cnpj.replace(/\D/g, '').includes(q.replace(/\D/g, ''))
-      ).slice(0, 60)
+    ? allClients.filter(c => {
+        if (c.name.toLowerCase().includes(q)) return true
+        if (qDigits.length >= 3 && c.cnpj.replace(/\D/g, '').includes(qDigits)) return true
+        return false
+      }).slice(0, 60)
     : []
 
   function pickClient(c: Client) {
