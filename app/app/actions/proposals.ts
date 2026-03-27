@@ -13,12 +13,15 @@ async function requireOrg() {
   return { orgId: session.user.orgId as string, userId: session.user.id }
 }
 
+const VALID_ITEM_TYPES = ['MONTHLY_SERVICE', 'ONETIME_SERVICE', 'EQUIPMENT_RENTAL', 'EQUIPMENT_PURCHASE']
+
 function parseItems(formData: FormData) {
   const count = parseInt(formData.get('items_count') as string) || 0
   const items = []
   for (let i = 0; i < count; i++) {
     const description = (formData.get(`items[${i}][description]`) as string)?.trim()
     if (!description) continue
+    const itemType = (formData.get(`items[${i}][item_type]`) as string) || 'MONTHLY_SERVICE'
     items.push({
       product_id: (formData.get(`items[${i}][product_id]`) as string) || null,
       description,
@@ -26,6 +29,7 @@ function parseItems(formData: FormData) {
       quantity: parseFloat(formData.get(`items[${i}][quantity]`) as string) || 1,
       unit_price: parseFloat(formData.get(`items[${i}][unit_price]`) as string) || 0,
       total: parseFloat(formData.get(`items[${i}][total]`) as string) || 0,
+      item_type: (VALID_ITEM_TYPES.includes(itemType) ? itemType : 'MONTHLY_SERVICE') as any,
       sort_order: i,
     })
   }
@@ -48,10 +52,14 @@ export async function createProposalAction(_prev: unknown, formData: FormData) {
   })
   const number = (lastProposal?.number ?? 0) + 1
   const items = parseItems(formData)
-  const total = parseFloat(formData.get('total') as string) || 0
-  const discount = parseFloat(formData.get('discount') as string) || 0
-  const valid_until = formData.get('valid_until') as string
-  const notes = (formData.get('notes') as string)?.trim() || null
+  const total          = parseFloat(formData.get('total') as string) || 0
+  const total_monthly  = parseFloat(formData.get('total_monthly') as string) || 0
+  const total_onetime  = parseFloat(formData.get('total_onetime') as string) || 0
+  const discount       = parseFloat(formData.get('discount') as string) || 0
+  const freight        = parseFloat(formData.get('freight') as string) || 0
+  const valid_until    = formData.get('valid_until') as string
+  const payment_method = (formData.get('payment_method') as string)?.trim() || null
+  const notes          = (formData.get('notes') as string)?.trim() || null
 
   const proposal = await prisma.proposal.create({
     data: {
@@ -61,6 +69,10 @@ export async function createProposalAction(_prev: unknown, formData: FormData) {
       title,
       discount,
       total,
+      total_monthly,
+      total_onetime,
+      freight,
+      payment_method,
       notes,
       valid_until: valid_until ? new Date(valid_until) : null,
       items: { create: items },

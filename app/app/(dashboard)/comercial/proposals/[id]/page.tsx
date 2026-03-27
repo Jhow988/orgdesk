@@ -13,6 +13,17 @@ const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   EXPIRED:  { label: 'Expirada',    className: 'bg-white/[0.08] text-zinc-500' },
 }
 
+const ITEM_TYPE_CONFIG: Record<string, { label: string; color: string }> = {
+  MONTHLY_SERVICE:    { label: 'Serviços Mensais',      color: 'text-indigo-400 border-indigo-500/20' },
+  ONETIME_SERVICE:    { label: 'Serviços Avulsos',       color: 'text-sky-400 border-sky-500/20' },
+  EQUIPMENT_RENTAL:   { label: 'Equipamentos Alugados',  color: 'text-amber-400 border-amber-500/20' },
+  EQUIPMENT_PURCHASE: { label: 'Equipamentos Comprados', color: 'text-emerald-400 border-emerald-500/20' },
+}
+
+const ITEM_TYPE_ORDER = ['MONTHLY_SERVICE', 'ONETIME_SERVICE', 'EQUIPMENT_RENTAL', 'EQUIPMENT_PURCHASE']
+
+const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+
 interface Props { params: Promise<{ id: string }> }
 
 export default async function ProposalDetailPage({ params }: Props) {
@@ -31,6 +42,21 @@ export default async function ProposalDetailPage({ params }: Props) {
 
   const cfg = STATUS_CONFIG[proposal.status] ?? STATUS_CONFIG.DRAFT
 
+  // Group items by type
+  const grouped = ITEM_TYPE_ORDER.map(type => ({
+    type,
+    cfg: ITEM_TYPE_CONFIG[type],
+    items: proposal.items.filter(i => (i as any).item_type === type),
+  })).filter(g => g.items.length > 0)
+
+  const monthly = proposal.items
+    .filter(i => (i as any).item_type === 'MONTHLY_SERVICE')
+    .reduce((s, i) => s + Number(i.total), 0)
+
+  const onetime = proposal.items
+    .filter(i => (i as any).item_type !== 'MONTHLY_SERVICE')
+    .reduce((s, i) => s + Number(i.total), 0)
+
   return (
     <div className="p-6 max-w-4xl">
       <div className="mb-6">
@@ -44,9 +70,11 @@ export default async function ProposalDetailPage({ params }: Props) {
         <p className="mt-1 text-sm text-zinc-400">
           #{String(proposal.number).padStart(4, '0')} · {proposal.client.name}
           {proposal.valid_until && <> · Válida até {new Date(proposal.valid_until).toLocaleDateString('pt-BR')}</>}
+          {(proposal as any).payment_method && <> · {(proposal as any).payment_method}</>}
         </p>
       </div>
 
+      {/* Action buttons */}
       <div className="mb-6 flex flex-wrap gap-2">
         {proposal.status === 'DRAFT' && (
           <form action={async () => { 'use server'; await updateProposalStatusAction(id, 'SENT') }}>
@@ -77,63 +105,72 @@ export default async function ProposalDetailPage({ params }: Props) {
         )}
       </div>
 
-      <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] overflow-hidden mb-4">
-        <table className="w-full text-sm bg-transparent">
-          <thead>
-            <tr className="border-b border-white/[0.08] text-left text-xs text-zinc-500">
-              <th className="px-4 py-3 font-medium">Descrição</th>
-              <th className="px-4 py-3 font-medium text-right">Qtd</th>
-              <th className="px-4 py-3 font-medium text-right">Preço unit.</th>
-              <th className="px-4 py-3 font-medium text-right">Subtotal</th>
-            </tr>
-          </thead>
-          <tbody>
-            {proposal.items.map(item => (
-              <tr key={item.id} className="border-b border-white/[0.06] last:border-0">
-                <td className="px-4 py-3 text-zinc-200">
-                  {item.description}
-                  <span className="ml-2 text-xs text-zinc-500">{item.unit}</span>
-                </td>
-                <td className="px-4 py-3 text-right font-mono text-zinc-400">{Number(item.quantity)}</td>
-                <td className="px-4 py-3 text-right font-mono text-zinc-400">
-                  {Number(item.unit_price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                </td>
-                <td className="px-4 py-3 text-right font-mono text-zinc-100">
-                  {Number(item.total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* Items grouped by type */}
+      <div className="space-y-4 mb-6">
+        {grouped.map(group => (
+          <div key={group.type} className="rounded-xl border border-white/[0.08] bg-white/[0.03] overflow-hidden">
+            <div className={`px-4 py-2 border-b border-white/[0.06] bg-white/[0.02]`}>
+              <p className={`text-xs font-semibold uppercase tracking-wider ${group.cfg.color.split(' ')[0]}`}>{group.cfg.label}</p>
+            </div>
+            <table className="w-full text-sm bg-transparent">
+              <thead>
+                <tr className="border-b border-white/[0.06] text-left text-xs text-zinc-500">
+                  <th className="px-4 py-2 font-medium">Descrição</th>
+                  <th className="px-4 py-2 font-medium text-right">Qtd</th>
+                  <th className="px-4 py-2 font-medium text-right">Preço unit.</th>
+                  <th className="px-4 py-2 font-medium text-right">Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {group.items.map(item => (
+                  <tr key={item.id} className="border-b border-white/[0.04] last:border-0">
+                    <td className="px-4 py-2.5 text-zinc-200">
+                      {item.description}
+                      <span className="ml-2 text-xs text-zinc-500">{item.unit}</span>
+                    </td>
+                    <td className="px-4 py-2.5 text-right font-mono text-zinc-400">{Number(item.quantity)}</td>
+                    <td className="px-4 py-2.5 text-right font-mono text-zinc-400">{fmt(Number(item.unit_price))}</td>
+                    <td className="px-4 py-2.5 text-right font-mono text-zinc-100">{fmt(Number(item.total))}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
       </div>
 
-      <div className="flex justify-end">
-        <dl className="space-y-1 text-sm w-64">
+      {/* Totals */}
+      <div className="flex justify-end mb-6">
+        <dl className="space-y-1.5 text-sm w-72">
           <div className="flex justify-between">
-            <dt className="text-zinc-400">Subtotal</dt>
-            <dd className="font-mono text-zinc-400">
-              {(Number(proposal.total) + Number(proposal.discount)).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-            </dd>
+            <dt className="text-indigo-400">Total Mensal (serviços)</dt>
+            <dd className="font-mono text-indigo-300">{fmt(monthly)}</dd>
           </div>
+          <div className="flex justify-between">
+            <dt className="text-sky-400">Total Avulso + Equipamentos</dt>
+            <dd className="font-mono text-sky-300">{fmt(onetime)}</dd>
+          </div>
+          {Number((proposal as any).freight) > 0 && (
+            <div className="flex justify-between">
+              <dt className="text-zinc-400">Frete</dt>
+              <dd className="font-mono text-zinc-300">{fmt(Number((proposal as any).freight))}</dd>
+            </div>
+          )}
           {Number(proposal.discount) > 0 && (
             <div className="flex justify-between">
               <dt className="text-zinc-400">Desconto</dt>
-              <dd className="font-mono text-red-400">
-                -{Number(proposal.discount).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-              </dd>
+              <dd className="font-mono text-red-400">-{fmt(Number(proposal.discount))}</dd>
             </div>
           )}
           <div className="flex justify-between border-t border-white/[0.08] pt-2">
-            <dt className="font-semibold text-zinc-400">Total</dt>
-            <dd className="font-mono font-bold text-zinc-100">
-              {Number(proposal.total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-            </dd>
+            <dt className="font-semibold text-zinc-300">Total Geral</dt>
+            <dd className="font-mono font-bold text-zinc-100">{fmt(Number(proposal.total))}</dd>
           </div>
         </dl>
       </div>
 
       {proposal.notes && (
-        <div className="mt-6 rounded-xl border border-white/[0.08] bg-white/[0.04] p-4">
+        <div className="rounded-xl border border-white/[0.08] bg-white/[0.04] p-4">
           <p className="text-xs font-semibold uppercase tracking-wider text-zinc-500 mb-2">Observações</p>
           <p className="text-sm text-zinc-400 whitespace-pre-wrap">{proposal.notes}</p>
         </div>

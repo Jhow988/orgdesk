@@ -69,6 +69,13 @@ enum ProductType {
   SERVICE
 }
 
+enum ProposalItemType {
+  MONTHLY_SERVICE
+  ONETIME_SERVICE
+  EQUIPMENT_RENTAL
+  EQUIPMENT_PURCHASE
+}
+
 enum ProposalStatus {
   DRAFT
   SENT
@@ -679,6 +686,10 @@ model Proposal {
   valid_until     DateTime?
   discount        Decimal        @db.Decimal(12, 2) @default(0)
   total           Decimal        @db.Decimal(12, 2) @default(0)
+  total_monthly   Decimal        @db.Decimal(12, 2) @default(0)
+  total_onetime   Decimal        @db.Decimal(12, 2) @default(0)
+  payment_method  String?
+  freight         Decimal        @db.Decimal(12, 2) @default(0)
   notes           String?        @db.Text
   sent_at         DateTime?
   viewed_at       DateTime?
@@ -699,16 +710,17 @@ model Proposal {
 }
 
 model ProposalItem {
-  id          String   @id @default(cuid())
+  id          String           @id @default(cuid())
   proposal_id String
   product_id  String?
   description String
-  unit        String?  @default("un")
-  quantity    Decimal  @db.Decimal(10, 3) @default(1)
-  unit_price  Decimal  @db.Decimal(12, 2)
-  total       Decimal  @db.Decimal(12, 2)
-  sort_order  Int      @default(0)
-  created_at  DateTime @default(now())
+  unit        String?          @default("un")
+  quantity    Decimal          @db.Decimal(10, 3) @default(1)
+  unit_price  Decimal          @db.Decimal(12, 2)
+  total       Decimal          @db.Decimal(12, 2)
+  item_type   ProposalItemType @default(MONTHLY_SERVICE)
+  sort_order  Int              @default(0)
+  created_at  DateTime         @default(now())
 
   proposal Proposal @relation(fields: [proposal_id], references: [id], onDelete: Cascade)
   product  Product? @relation(fields: [product_id], references: [id])
