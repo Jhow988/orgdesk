@@ -77,40 +77,28 @@ function ClientCombobox({
   value:    string
   onChange: (id: string) => void
 }) {
-  const [search, setSearch] = useState('')
-  const [open,   setOpen]   = useState(false)
+  const [q,    setQ]    = useState('')
+  const [open, setOpen] = useState(false)
 
-  const selected = clients.find(c => c.id === value)
+  const selected = value ? clients.find(c => c.id === value) ?? null : null
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    if (!q) return clients.slice(0, 50)
-    return clients.filter(c =>
-      c.name.toLowerCase().includes(q) ||
-      c.cnpj.replace(/\D/g, '').includes(q.replace(/\D/g, ''))
-    ).slice(0, 50)
-  }, [clients, search])
+  // Plain inline filter — no useMemo
+  const trimmed = q.trim().toLowerCase()
+  const results = trimmed
+    ? clients.filter(c =>
+        c.name.toLowerCase().includes(trimmed) ||
+        c.cnpj.replace(/\D/g, '').includes(trimmed.replace(/\D/g, ''))
+      ).slice(0, 60)
+    : clients.slice(0, 60)
 
-  function pick(c: Client) {
-    onChange(c.id)
-    setSearch('')
-    setOpen(false)
-  }
-
-  function clear() {
-    onChange('')
-    setSearch('')
-    setOpen(true)
-  }
-
-  // When a client is selected and dropdown is closed → show a badge
   if (selected && !open) {
     return (
       <div className="flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.04] px-3 py-2">
         <span className="flex-1 text-xs text-zinc-200 truncate">{selected.name}</span>
-        <span className="text-[11px] text-zinc-600 font-mono">{fmtCnpj(selected.cnpj)}</span>
-        <button type="button" onClick={clear}
-          className="rounded p-0.5 text-zinc-600 hover:text-zinc-300 transition-colors flex-shrink-0">
+        <span className="text-[11px] text-zinc-600 font-mono shrink-0">{fmtCnpj(selected.cnpj)}</span>
+        <button type="button"
+          onClick={() => { onChange(''); setQ(''); setOpen(true) }}
+          className="rounded p-0.5 text-zinc-600 hover:text-zinc-300 transition-colors shrink-0">
           <X size={11} />
         </button>
       </div>
@@ -119,26 +107,24 @@ function ClientCombobox({
 
   return (
     <div className="relative">
-      <div className="relative">
-        <Search size={12} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
-        <input
-          autoComplete="off"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          onFocus={() => setOpen(true)}
-          onBlur={() => setTimeout(() => setOpen(false), 150)}
-          placeholder="Buscar cliente…"
-          className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] pl-8 pr-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:border-indigo-500/40 focus:outline-none"
-        />
-      </div>
-
+      <Search size={12} className="absolute left-3 top-3.5 text-zinc-500 pointer-events-none" />
+      <input
+        type="text"
+        autoComplete="off"
+        value={q}
+        onChange={e => { setQ(e.target.value); setOpen(true) }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setTimeout(() => setOpen(false), 200)}
+        placeholder="Digite para buscar…"
+        className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] pl-8 pr-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:border-indigo-500/40 focus:outline-none"
+      />
       {open && (
-        <div className="absolute z-20 mt-1 w-full max-h-48 overflow-y-auto rounded-lg border border-white/[0.10] bg-zinc-900 shadow-xl">
-          {filtered.length === 0 ? (
-            <p className="px-3 py-2 text-xs text-zinc-600">Nenhum cliente encontrado.</p>
-          ) : filtered.map(c => (
-            <button key={c.id} type="button" onMouseDown={() => pick(c)}
-              className="flex w-full flex-col items-start px-3 py-2 text-left hover:bg-white/[0.06] transition-colors">
+        <div className="absolute z-30 mt-1 w-full max-h-52 overflow-y-auto rounded-lg border border-white/[0.10] bg-zinc-900 shadow-2xl">
+          {results.length === 0 ? (
+            <p className="px-3 py-3 text-xs text-zinc-500">Nenhum cliente encontrado para "{q}"</p>
+          ) : results.map(c => (
+            <button key={c.id} type="button" onMouseDown={() => { onChange(c.id); setQ(''); setOpen(false) }}
+              className="flex w-full flex-col items-start px-3 py-2 text-left hover:bg-white/[0.06] transition-colors border-b border-white/[0.03] last:border-0">
               <span className="text-xs font-medium text-zinc-200">{c.name}</span>
               <span className="text-[11px] text-zinc-600 font-mono">{fmtCnpj(c.cnpj)}</span>
             </button>
