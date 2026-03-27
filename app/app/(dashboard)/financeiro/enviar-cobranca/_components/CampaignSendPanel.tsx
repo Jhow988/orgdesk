@@ -33,10 +33,10 @@ interface Campaign {
 }
 
 interface Props {
-  campaigns:          Campaign[]
-  defaultCampaignId?: string
-  templates:          EmailTemplateRow[]
-  openBoletosCnpjs:   string[]
+  campaigns:           Campaign[]
+  defaultCampaignId?:  string
+  templates:           EmailTemplateRow[]
+  openBoletosByMonth:  Record<string, string[]>  // "YYYY-MM" → cnpj[]
 }
 
 const STATUS_LABEL: Record<SendStatus, string> = {
@@ -68,8 +68,7 @@ const STATUS_DOT: Record<SendStatus, string> = {
 
 const PAGE_SIZE = 20
 
-export function CampaignSendPanel({ campaigns, defaultCampaignId, templates, openBoletosCnpjs }: Props) {
-  const openBoletoSet = useMemo(() => new Set(openBoletosCnpjs), [openBoletosCnpjs])
+export function CampaignSendPanel({ campaigns, defaultCampaignId, templates, openBoletosByMonth }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
@@ -84,6 +83,12 @@ export function CampaignSendPanel({ campaigns, defaultCampaignId, templates, ope
 
   const campaign = campaigns.find(c => c.id === campaignId)
   const sends    = campaign?.sends ?? []
+
+  // Set de CNPJs em aberto no Bling para o mês desta campanha
+  const openBoletoSet = useMemo(() => {
+    const month = campaign?.month_year ?? ''
+    return new Set(openBoletosByMonth[month] ?? [])
+  }, [campaign?.month_year, openBoletosByMonth])
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
