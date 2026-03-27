@@ -10,6 +10,28 @@ async function requireOrg() {
   return { orgId: session.user.orgId!, userId: session.user.id! }
 }
 
+// ─── Search clients ────────────────────────────────────────────────────────────
+
+export async function searchClientsAction(q: string) {
+  const { orgId } = await requireOrg()
+  if (!q || q.trim().length < 3) return []
+
+  const term = q.trim()
+  const rows = await prisma.$queryRaw<{ id: string; name: string; cnpj: string }[]>`
+    SELECT id, name, cnpj FROM clients
+    WHERE organization_id = ${orgId}
+      AND is_active = true
+      AND (
+        name ILIKE ${term + '%'}
+        OR cnpj ILIKE ${term + '%'}
+        OR cnpj LIKE ${term.replace(/\D/g, '') + '%'}
+      )
+    ORDER BY name ASC
+    LIMIT 60
+  `
+  return rows
+}
+
 // ─── List ──────────────────────────────────────────────────────────────────────
 
 export async function listTicketsAction(filters?: {
@@ -79,7 +101,7 @@ export async function getTicketAction(id: string) {
         assignee: { select: { id: true, name: true } },
         messages: {
           orderBy: { created_at: 'asc' },
-          include: { author: { select: { id: true, name: true } } },
+          include: { author: { select: { id: true, name: true, email: true } } },
         },
       },
     }),

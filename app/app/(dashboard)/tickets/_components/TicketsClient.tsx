@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useMemo, useTransition, useRef } from 'react'
+import { useState, useMemo, useTransition, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   MessageSquare, Search, Plus, X, AlertCircle,
   Clock, CheckCircle2, CircleDot, RefreshCw,
 } from 'lucide-react'
-import { createTicketAction } from '@/app/actions/tickets'
+import { createTicketAction, searchClientsAction } from '@/app/actions/tickets'
 
 type Status   = 'OPEN' | 'IN_PROGRESS' | 'WAITING_CLIENT' | 'RESOLVED' | 'CLOSED'
 type Priority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
@@ -69,11 +69,9 @@ function fmtCnpj(cnpj: string) {
 // ─── New Ticket Modal ──────────────────────────────────────────────────────────
 
 function NewTicketModal({
-  clients,
   onClose,
   onCreated,
 }: {
-  clients:   Client[]
   onClose:   () => void
   onCreated: (id: string) => void
 }) {
@@ -85,30 +83,41 @@ function NewTicketModal({
     priority:  'MEDIUM',
     category:  '',
   })
-  const [error,        setError]        = useState('')
-  const [clientSearch, setClientSearch] = useState('')
-  const [clientOpen,   setClientOpen]   = useState(false)
+  const [error,          setError]          = useState('')
+  const [clientSearch,   setClientSearch]   = useState('')
+  const [clientResults,  setClientResults]  = useState<Client[]>([])
+  const [clientOpen,     setClientOpen]     = useState(false)
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null)
+  const [searching,      setSearching]      = useState(false)
   const clientInputRef = useRef<HTMLInputElement>(null)
+  const debounceRef    = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const selectedClient = form.clientId ? clients.find(c => c.id === form.clientId) ?? null : null
-
-  const q = clientSearch.trim().toLowerCase()
-  const clientResults = q.length >= 3
-    ? clients.filter(c =>
-        c.name.toLowerCase().startsWith(q) ||
-        c.cnpj.replace(/\D/g, '').startsWith(q.replace(/\D/g, ''))
-      ).slice(0, 60)
-    : []
+  const handleClientSearch = useCallback((value: string) => {
+    setClientSearch(value)
+    setClientOpen(true)
+    if (debounceRef.current) clearTimeout(debounceRef.current)
+    if (value.trim().length < 3) { setClientResults([]); return }
+    debounceRef.current = setTimeout(async () => {
+      setSearching(true)
+      const rows = await searchClientsAction(value.trim())
+      setClientResults(rows)
+      setSearching(false)
+    }, 300)
+  }, [])
 
   function pickClient(c: Client) {
+    setSelectedClient(c)
     setForm(f => ({ ...f, clientId: c.id }))
     setClientSearch('')
+    setClientResults([])
     setClientOpen(false)
   }
 
   function clearClient() {
+    setSelectedClient(null)
     setForm(f => ({ ...f, clientId: '' }))
     setClientSearch('')
+    setClientResults([])
     setClientOpen(true)
     setTimeout(() => clientInputRef.current?.focus(), 0)
   }
@@ -167,15 +176,17 @@ function NewTicketModal({
                   type="text"
                   autoComplete="off"
                   value={clientSearch}
-                  onChange={e => { setClientSearch(e.target.value); setClientOpen(true) }}
-                  onFocus={() => setClientOpen(true)}
+                  onChange={e => handleClientSearch(e.target.value)}
+                  onFocus={() => { if (clientSearch.trim().length >= 3) setClientOpen(true) }}
                   onBlur={() => setTimeout(() => setClientOpen(false), 200)}
-                  placeholder="Digite para buscar…"
+                  placeholder="Digite ao menos 3 letras para buscar…"
                   className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] pl-8 pr-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:border-indigo-500/40 focus:outline-none"
                 />
-                {clientOpen && (
+                {clientOpen && clientSearch.trim().length >= 3 && (
                   <div className="absolute z-30 mt-1 w-full max-h-52 overflow-y-auto rounded-lg border border-white/[0.10] bg-zinc-900 shadow-2xl">
-                    {clientResults.length === 0 ? (
+                    {searching ? (
+                      <p className="px-3 py-3 text-xs text-zinc-500">Buscando…</p>
+                    ) : clientResults.length === 0 ? (
                       <p className="px-3 py-3 text-xs text-zinc-500">Nenhum resultado para &ldquo;{clientSearch}&rdquo;</p>
                     ) : clientResults.map(c => (
                       <button key={c.id} type="button" onMouseDown={() => pickClient(c)}
@@ -269,11 +280,9 @@ function NewTicketModal({
 export function TicketsClient({
   tickets,
   stats,
-  clients,
 }: {
   tickets: Ticket[]
   stats:   Stats
-  clients: Client[]
 }) {
   const router = useRouter()
   const [search,         setSearch]         = useState('')
@@ -305,7 +314,6 @@ export function TicketsClient({
     <>
       {showModal && (
         <NewTicketModal
-          clients={clients}
           onClose={() => setShowModal(false)}
           onCreated={id => { setShowModal(false); router.push(`/tickets/${id}`) }}
         />
