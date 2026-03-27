@@ -106,6 +106,7 @@ function NewTicketModal({
   const [clientOpen,     setClientOpen]     = useState(false)
   const [selectedClient, setSelectedClient] = useState<Client | null>(null)
   const [loadingClients, setLoadingClients] = useState(true)
+  const [loadError,      setLoadError]      = useState('')
   const clientInputRef = useRef<HTMLInputElement>(null)
 
   // Load cache on mount, refresh every minute
@@ -113,14 +114,21 @@ function NewTicketModal({
     let alive = true
     async function load() {
       setLoadingClients(true)
-      const rows = await getCachedClients()
-      if (alive) { setAllClients(rows); setLoadingClients(false) }
+      setLoadError('')
+      try {
+        const rows = await getCachedClients()
+        if (alive) { setAllClients(rows); setLoadingClients(false) }
+      } catch {
+        if (alive) { setLoadError('Falha ao carregar clientes'); setLoadingClients(false) }
+      }
     }
     load()
     const interval = setInterval(async () => {
-      _cachedAt = 0 // force refresh
-      const rows = await getCachedClients()
-      if (alive) setAllClients(rows)
+      _cachedAt = 0
+      try {
+        const rows = await getCachedClients()
+        if (alive) setAllClients(rows)
+      } catch { /* silent */ }
     }, CACHE_TTL)
     return () => { alive = false; clearInterval(interval) }
   }, [])
@@ -128,8 +136,8 @@ function NewTicketModal({
   const q = clientSearch.trim().toLowerCase()
   const clientResults = q.length >= 3
     ? allClients.filter(c =>
-        c.name.toLowerCase().startsWith(q) ||
-        c.cnpj.replace(/\D/g, '').startsWith(q.replace(/\D/g, ''))
+        c.name.toLowerCase().includes(q) ||
+        c.cnpj.replace(/\D/g, '').includes(q.replace(/\D/g, ''))
       ).slice(0, 60)
     : []
 
@@ -205,7 +213,7 @@ function NewTicketModal({
                   onChange={e => { setClientSearch(e.target.value); setClientOpen(true) }}
                   onFocus={() => setClientOpen(true)}
                   onBlur={() => setTimeout(() => setClientOpen(false), 200)}
-                  placeholder={loadingClients ? 'Carregando clientes…' : `Digite ao menos 3 letras para buscar… (${allClients.length} clientes)`}
+                  placeholder={loadingClients ? 'Carregando clientes…' : 'Digite ao menos 3 letras para buscar…'}
                   disabled={loadingClients}
                   className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] pl-8 pr-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:border-indigo-500/40 focus:outline-none disabled:opacity-50"
                 />
@@ -224,6 +232,11 @@ function NewTicketModal({
                 )}
               </div>
             )}
+            {/* Status de carregamento visível */}
+            {loadError
+              ? <p className="mt-1 text-[11px] text-red-400">{loadError}</p>
+              : !loadingClients && <p className="mt-1 text-[11px] text-zinc-600">{allClients.length} clientes carregados</p>
+            }
           </div>
 
           <div>
