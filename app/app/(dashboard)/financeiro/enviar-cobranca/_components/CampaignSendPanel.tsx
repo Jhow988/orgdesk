@@ -36,6 +36,7 @@ interface Props {
   campaigns:          Campaign[]
   defaultCampaignId?: string
   templates:          EmailTemplateRow[]
+  openBoletosCnpjs:   string[]
 }
 
 const STATUS_LABEL: Record<SendStatus, string> = {
@@ -67,7 +68,8 @@ const STATUS_DOT: Record<SendStatus, string> = {
 
 const PAGE_SIZE = 20
 
-export function CampaignSendPanel({ campaigns, defaultCampaignId, templates }: Props) {
+export function CampaignSendPanel({ campaigns, defaultCampaignId, templates, openBoletosCnpjs }: Props) {
+  const openBoletoSet = useMemo(() => new Set(openBoletosCnpjs), [openBoletosCnpjs])
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
@@ -90,10 +92,14 @@ export function CampaignSendPanel({ campaigns, defaultCampaignId, templates }: P
         s.client_name.toLowerCase().includes(q) ||
         s.client_cnpj.includes(q) ||
         s.emails.some(e => e.toLowerCase().includes(q))
-      const matchStatus = statusFilter === 'Todas' || s.status === statusFilter
+      const matchStatus = statusFilter === 'Todas'
+        ? true
+        : statusFilter === 'BOLETO_ABERTO'
+          ? openBoletoSet.has(s.client_cnpj.replace(/\D/g, ''))
+          : s.status === statusFilter
       return matchSearch && matchStatus
     })
-  }, [sends, search, statusFilter])
+  }, [sends, search, statusFilter, openBoletoSet])
 
   const totalPages  = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
@@ -249,13 +255,15 @@ export function CampaignSendPanel({ campaigns, defaultCampaignId, templates }: P
         <select
           value={statusFilter}
           onChange={e => handleFilterChange(search, e.target.value)}
-          className="rounded-md border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-xs text-zinc-200 focus:outline-none"
+          className="rounded-md border border-white/[0.1] bg-zinc-900 px-3 py-2 text-xs text-zinc-200 focus:outline-none"
+          style={{ colorScheme: 'dark' }}
         >
-          <option>Todas</option>
-          <option value="PENDING">Pendente</option>
-          <option value="SENT">Enviado</option>
-          <option value="FAILED">Falhou</option>
-          <option value="NO_EMAIL">Sem e-mail</option>
+          <option value="Todas"         className="bg-zinc-900 text-zinc-200">Todas</option>
+          <option value="PENDING"       className="bg-zinc-900 text-zinc-200">Pendente</option>
+          <option value="SENT"          className="bg-zinc-900 text-zinc-200">Enviado</option>
+          <option value="FAILED"        className="bg-zinc-900 text-zinc-200">Falhou</option>
+          <option value="NO_EMAIL"      className="bg-zinc-900 text-zinc-200">Sem e-mail</option>
+          <option value="BOLETO_ABERTO" className="bg-zinc-900 text-amber-300">Boleto em aberto (Bling)</option>
         </select>
         <button
           onClick={() => handleSend(filtered.filter(s => s.status === 'PENDING' || s.status === 'FAILED').map(s => s.id))}

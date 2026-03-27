@@ -10,7 +10,7 @@ export default async function EnviarCobrancaPage() {
 
   const orgId = session.user.orgId
 
-  const [campaigns, clients, templates] = await Promise.all([
+  const [campaigns, clients, templates, openReceivables] = await Promise.all([
     prisma.campaign.findMany({
       where:    { organization_id: orgId },
       orderBy:  { created_at: 'desc' },
@@ -29,10 +29,20 @@ export default async function EnviarCobrancaPage() {
       select: { cnpj: true, name: true, email: true, email_nfe: true, email_boleto: true },
     }),
     listEmailTemplatesAction(),
+    // CNPJs com boleto em aberto no Bling (status=1)
+    prisma.accountReceivable.findMany({
+      where:  { organization_id: orgId, status: 1, client_cnpj: { not: null } },
+      select: { client_cnpj: true },
+    }),
   ])
 
   // Map CNPJ (digits only) → client record for fast lookup
   const clientMap = new Map(clients.map(c => [c.cnpj.replace(/\D/g, ''), c]))
+
+  // Set of CNPJs (digits only) with open boleto in Bling
+  const openBoletosCnpjs = [...new Set(
+    openReceivables.map(r => r.client_cnpj!.replace(/\D/g, ''))
+  )]
 
   const serialized = campaigns.map(c => ({
     id:           c.id,
@@ -79,6 +89,7 @@ export default async function EnviarCobrancaPage() {
         campaigns={serialized as any}
         defaultCampaignId={serialized[0]?.id}
         templates={templates}
+        openBoletosCnpjs={openBoletosCnpjs}
       />
     </div>
   )
