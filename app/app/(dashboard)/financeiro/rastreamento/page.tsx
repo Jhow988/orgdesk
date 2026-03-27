@@ -56,17 +56,21 @@ export default async function RastreamentoPage() {
     const portalAccess  = client?.last_portal_access as Date | null | undefined
 
     return {
-      id:             s.id,
-      clientName:     s.client_name,
-      clientCnpj:     fmt(s.client_cnpj),
-      campaignLabel:  s.campaign.label,
-      campaignMonth:  s.campaign.month_year,
-      status:         s.status as string,
-      sentAt:         s.sent_at ? fmtDate(s.sent_at) : null,
-      openCount:      s.open_count,
-      openedAt:       fmtDate(s.opened_at ?? null),
-      portalAccess:   fmtDate(portalAccess ?? null),
+      id:                 s.id,
+      clientName:         s.client_name,
+      clientCnpj:         fmt(s.client_cnpj),
+      campaignLabel:      s.campaign.label,
+      campaignMonth:      s.campaign.month_year,
+      status:             s.status as string,
+      sentAt:             s.sent_at ? fmtDate(s.sent_at) : null,
+      openCount:          s.open_count,
+      openedAt:           fmtDate(s.opened_at ?? null),
+      portalAccess:       fmtDate(portalAccess ?? null),
       portalUrl,
+      boletoDownloadedAt: fmtDate((s as any).boleto_downloaded_at ?? null),
+      nfDownloadedAt:     fmtDate((s as any).nf_downloaded_at ?? null),
+      hasNf:              s.nf_pages.length > 0,
+      hasBoleto:          s.boleto_pages.length > 0,
     }
   })
 

@@ -82,6 +82,21 @@ export async function GET(
     ? `NF_${client.cnpj}_${campaign.month_year}.pdf`
     : `Boleto_${client.cnpj}_${campaign.month_year}.pdf`
 
+  // Record download timestamp (fire-and-forget — never fail the download)
+  try {
+    if (isNf) {
+      await adminPrisma.campaignSend.update({
+        where: { id: send.id },
+        data:  { nf_downloaded_at: new Date() },
+      })
+    } else {
+      await adminPrisma.campaignSend.update({
+        where: { id: send.id },
+        data:  { boleto_downloaded_at: new Date() },
+      })
+    }
+  } catch {}
+
   return new NextResponse(buffer, {
     headers: {
       'Content-Type':        'application/pdf',

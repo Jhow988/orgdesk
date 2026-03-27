@@ -1,22 +1,24 @@
 'use client'
 
 import { useState } from 'react'
-import { MailOpen, Globe, Clock, Copy, Check, ExternalLink, Search } from 'lucide-react'
-
-type SendStatus = 'PENDING' | 'SENT' | 'FAILED' | 'NO_EMAIL' | 'NO_CADASTRO' | 'SIMULATED'
+import { MailOpen, Globe, Clock, Copy, Check, ExternalLink, Search, FileText, Download } from 'lucide-react'
 
 interface Row {
-  id:            string
-  clientName:    string
-  clientCnpj:    string
-  campaignLabel: string
-  campaignMonth: string
-  status:        string
-  sentAt:        string | null
-  openCount:     number
-  openedAt:      string | null
-  portalAccess:  string | null
-  portalUrl:     string | null
+  id:                 string
+  clientName:         string
+  clientCnpj:         string
+  campaignLabel:      string
+  campaignMonth:      string
+  status:             string
+  sentAt:             string | null
+  openCount:          number
+  openedAt:           string | null
+  portalAccess:       string | null
+  portalUrl:          string | null
+  boletoDownloadedAt: string | null
+  nfDownloadedAt:     string | null
+  hasNf:              boolean
+  hasBoleto:          boolean
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -78,29 +80,90 @@ function PortalCell({ portalUrl, portalAccess }: { portalUrl: string | null; por
   }
 
   return (
-    <div className="flex items-center gap-1.5">
-      <button
-        onClick={handleCopy}
-        title="Copiar link do portal"
-        className="inline-flex items-center gap-1.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-1 text-xs font-medium text-indigo-400 hover:bg-indigo-500/20 transition-colors"
-      >
-        {copied ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
-        {copied ? 'Copiado!' : 'Copiar link'}
-      </button>
-      <a
-        href={portalUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        title="Abrir portal"
-        className="rounded-md p-1 text-zinc-600 hover:text-indigo-400 transition-colors"
-      >
-        <ExternalLink size={13} />
-      </a>
-      {portalAccess && (
-        <span className="inline-flex items-center gap-1 text-[11px] text-indigo-400 ml-0.5">
+    <div className="space-y-1">
+      <div className="flex items-center gap-1.5">
+        <button
+          onClick={handleCopy}
+          title="Copiar link do portal"
+          className="inline-flex items-center gap-1.5 rounded-md bg-indigo-500/10 border border-indigo-500/20 px-2.5 py-1 text-xs font-medium text-indigo-400 hover:bg-indigo-500/20 transition-colors"
+        >
+          {copied ? <Check size={11} className="text-emerald-400" /> : <Copy size={11} />}
+          {copied ? 'Copiado!' : 'Copiar link'}
+        </button>
+        <a
+          href={portalUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          title="Abrir portal"
+          className="rounded-md p-1 text-zinc-600 hover:text-indigo-400 transition-colors"
+        >
+          <ExternalLink size={13} />
+        </a>
+      </div>
+      {portalAccess ? (
+        <p className="text-[11px] text-indigo-400 flex items-center gap-1">
           <Globe size={10} />
-          {portalAccess}
-        </span>
+          Último acesso: {portalAccess}
+        </p>
+      ) : (
+        <p className="text-[11px] text-zinc-600">Nunca acessou</p>
+      )}
+    </div>
+  )
+}
+
+function DownloadsCell({
+  boletoDownloadedAt,
+  nfDownloadedAt,
+  hasNf,
+  hasBoleto,
+}: {
+  boletoDownloadedAt: string | null
+  nfDownloadedAt:     string | null
+  hasNf:              boolean
+  hasBoleto:          boolean
+}) {
+  if (!hasNf && !hasBoleto) {
+    return <span className="text-xs text-zinc-600">—</span>
+  }
+
+  return (
+    <div className="space-y-1.5">
+      {hasNf && (
+        <div>
+          {nfDownloadedAt ? (
+            <div>
+              <span className="inline-flex items-center gap-1 rounded-full bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 text-xs font-medium text-blue-400">
+                <FileText size={10} />
+                NF baixada
+              </span>
+              <p className="mt-0.5 text-[11px] text-zinc-600">{nfDownloadedAt}</p>
+            </div>
+          ) : (
+            <span className="inline-flex items-center gap-1 rounded-full bg-zinc-700/40 border border-zinc-700 px-2 py-0.5 text-xs text-zinc-500">
+              <FileText size={10} />
+              NF não baixada
+            </span>
+          )}
+        </div>
+      )}
+      {hasBoleto && (
+        <div>
+          {boletoDownloadedAt ? (
+            <div>
+              <span className="inline-flex items-center gap-1 rounded-full bg-yellow-500/10 border border-yellow-500/20 px-2 py-0.5 text-xs font-medium text-yellow-400">
+                <Download size={10} />
+                Boleto baixado
+              </span>
+              <p className="mt-0.5 text-[11px] text-zinc-600">{boletoDownloadedAt}</p>
+            </div>
+          ) : (
+            <span className="inline-flex items-center gap-1 rounded-full bg-zinc-700/40 border border-zinc-700 px-2 py-0.5 text-xs text-zinc-500">
+              <Download size={10} />
+              Boleto não baixado
+            </span>
+          )}
+        </div>
       )}
     </div>
   )
@@ -150,7 +213,10 @@ export function RastreamentoTable({ rows }: { rows: Row[] }) {
                 <span className="inline-flex items-center gap-1"><MailOpen size={11} /> E-mail</span>
               </th>
               <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500 whitespace-nowrap">
-                <span className="inline-flex items-center gap-1"><Globe size={11} /> Portal do cliente</span>
+                <span className="inline-flex items-center gap-1"><Globe size={11} /> Portal</span>
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-zinc-500 whitespace-nowrap">
+                <span className="inline-flex items-center gap-1"><Download size={11} /> Downloads</span>
               </th>
             </tr>
           </thead>
@@ -181,6 +247,14 @@ export function RastreamentoTable({ rows }: { rows: Row[] }) {
                 </td>
                 <td className="px-4 py-3">
                   <PortalCell portalUrl={row.portalUrl} portalAccess={row.portalAccess} />
+                </td>
+                <td className="px-4 py-3">
+                  <DownloadsCell
+                    boletoDownloadedAt={row.boletoDownloadedAt}
+                    nfDownloadedAt={row.nfDownloadedAt}
+                    hasNf={row.hasNf}
+                    hasBoleto={row.hasBoleto}
+                  />
                 </td>
               </tr>
             ))}

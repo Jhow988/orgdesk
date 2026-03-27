@@ -426,13 +426,15 @@ model CampaignSend {
   status       SendStatus @default(PENDING)
   nf_pages     Int[]
   boleto_pages Int[]
-  pixel_id     String?    @unique
-  is_simulated Boolean    @default(false)
-  sent_at      DateTime?
-  opened_at    DateTime?
-  open_count   Int        @default(0)
-  error_msg    String?
-  created_at   DateTime   @default(now())
+  pixel_id             String?    @unique
+  is_simulated         Boolean    @default(false)
+  sent_at              DateTime?
+  opened_at            DateTime?
+  open_count           Int        @default(0)
+  boleto_downloaded_at DateTime?
+  nf_downloaded_at     DateTime?
+  error_msg            String?
+  created_at           DateTime   @default(now())
 
   campaign Campaign    @relation(fields: [campaign_id], references: [id])
   logs     EmailLog[]
