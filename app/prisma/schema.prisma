@@ -176,6 +176,7 @@ model Organization {
   pix_charges          PixCharge[]
   bling_integration    BlingIntegration?
   account_receivables  AccountReceivable[]
+  client_tech_sheets   ClientTechSheet[]
 
   @@map("organizations")
 }
@@ -309,10 +310,30 @@ model Client {
   proposals    Proposal[]
   contracts    Contract[]
   pix_charges  PixCharge[]
+  tech_sheet   ClientTechSheet?
 
   @@unique([organization_id, cnpj])
   @@index([organization_id])
   @@map("clients")
+}
+
+model ClientTechSheet {
+  id              String   @id @default(cuid())
+  organization_id String
+  client_id       String   @unique
+  remote_access   String?  @db.Text
+  network         String?  @db.Text
+  software        String?  @db.Text
+  contacts        String?  @db.Text
+  notes           String?  @db.Text
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organization_id], references: [id])
+  client       Client       @relation(fields: [client_id], references: [id])
+
+  @@index([organization_id])
+  @@map("client_tech_sheets")
 }
 
 model ClientContact {
