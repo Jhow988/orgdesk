@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Building2, Receipt,
   Megaphone, BarChart2, MessageSquare, Users, Package,
   UserCog, FileCheck, FileSignature, Briefcase, Shield,
-  Settings, MapPin, Send, SendHorizonal, Mail, ClipboardList, BookOpen,
+  Settings, MapPin, Send, SendHorizonal, Mail, ClipboardList, BookOpen, Tag,
 } from 'lucide-react'
 import type { AccessLevel } from '@/lib/modules'
 
@@ -44,6 +44,7 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: '/comercial/proposals', label: 'Propostas', icon: FileCheck,    module: 'proposals' },
       { href: '/comercial/contracts', label: 'Contratos', icon: FileSignature, module: 'contracts' },
+      { href: '/comercial/labels',    label: 'Etiquetas', icon: Tag,           module: 'proposals' },
       { href: '/comercial/crm',       label: 'CRM',       icon: Briefcase,    module: 'crm' },
     ],
   },

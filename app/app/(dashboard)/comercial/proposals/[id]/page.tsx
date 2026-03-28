@@ -1,8 +1,9 @@
 import { auth } from '@/auth'
-import { prisma } from '@/lib/prisma'
+import { adminPrisma } from '@/lib/prisma'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { updateProposalStatusAction, sendProposalEmailAction } from '@/app/actions/proposals'
+import { LabelSelector } from '../../_components/LabelSelector'
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   DRAFT:    { label: 'Rascunho',    className: 'bg-white/[0.08] text-zinc-400' },
@@ -30,13 +31,22 @@ export default async function ProposalDetailPage({ params }: Props) {
   if (!session?.user?.orgId) redirect('/dashboard')
 
   const { id } = await params
-  const proposal = await prisma.proposal.findFirst({
-    where: { id, organization_id: session.user.orgId },
-    include: {
-      client: { select: { name: true, cnpj: true, email: true } },
-      items:  { orderBy: { sort_order: 'asc' } },
-    },
-  })
+
+  const [proposal, allLabels] = await Promise.all([
+    adminPrisma.proposal.findFirst({
+      where: { id, organization_id: session.user.orgId },
+      include: {
+        client: { select: { name: true, cnpj: true, email: true } },
+        items:  { orderBy: { sort_order: 'asc' } },
+        labels: { include: { label: { select: { id: true, name: true, color: true } } } },
+      },
+    }),
+    adminPrisma.salesLabel.findMany({
+      where:   { organization_id: session.user.orgId },
+      orderBy: { name: 'asc' },
+    }),
+  ])
+
   if (!proposal) notFound()
 
   const cfg = STATUS_CONFIG[proposal.status] ?? STATUS_CONFIG.DRAFT
@@ -45,18 +55,20 @@ export default async function ProposalDetailPage({ params }: Props) {
   const grouped = ITEM_TYPE_ORDER.map(type => ({
     type,
     cfg: ITEM_TYPE_CONFIG[type],
-    items: proposal.items.filter(i => (i as any).item_type === type),
+    items: proposal.items.filter((i: any) => i.item_type === type),
   })).filter(g => g.items.length > 0)
 
   const monthly = proposal.items
-    .filter(i => (i as any).item_type === 'MONTHLY_SERVICE')
-    .reduce((s, i) => s + Number(i.total), 0)
+    .filter((i: any) => i.item_type === 'MONTHLY_SERVICE')
+    .reduce((s: number, i: any) => s + Number(i.total), 0)
   const onetime = proposal.items
-    .filter(i => (i as any).item_type !== 'MONTHLY_SERVICE')
-    .reduce((s, i) => s + Number(i.total), 0)
+    .filter((i: any) => i.item_type !== 'MONTHLY_SERVICE')
+    .reduce((s: number, i: any) => s + Number(i.total), 0)
 
   const freight  = Number((proposal as any).freight ?? 0)
   const discount = Number(proposal.discount)
+
+  const currentLabels = proposal.labels.map(pl => pl.label)
 
   return (
     <div className="p-6 max-w-4xl">
@@ -82,11 +94,18 @@ export default async function ProposalDetailPage({ params }: Props) {
           {proposal.valid_until && <> · Válida até {new Date(proposal.valid_until).toLocaleDateString('pt-BR')}</>}
           {(proposal as any).payment_method && <> · {(proposal as any).payment_method}</>}
         </p>
+        <div className="mt-3">
+          <LabelSelector
+            entityType="proposal"
+            entityId={id}
+            allLabels={allLabels}
+            currentLabels={currentLabels}
+          />
+        </div>
       </div>
 
       {/* Action buttons */}
       <div className="mb-6 flex flex-wrap gap-2">
-        {/* Email */}
         {(proposal.status === 'DRAFT' || proposal.status === 'SENT') && proposal.client.email && (
           <form action={async () => { 'use server'; await sendProposalEmailAction(id) }}>
             <button type="submit"
@@ -95,8 +114,6 @@ export default async function ProposalDetailPage({ params }: Props) {
             </button>
           </form>
         )}
-
-        {/* Draft → Sent (manual, sem email) */}
         {proposal.status === 'DRAFT' && (
           <form action={async () => { 'use server'; await updateProposalStatusAction(id, 'SENT') }}>
             <button type="submit"
@@ -105,8 +122,6 @@ export default async function ProposalDetailPage({ params }: Props) {
             </button>
           </form>
         )}
-
-        {/* Accept → redirect to contract */}
         {(proposal.status === 'SENT' || proposal.status === 'VIEWED') && (
           <>
             <form action={async () => {
@@ -127,8 +142,6 @@ export default async function ProposalDetailPage({ params }: Props) {
             </form>
           </>
         )}
-
-        {/* Already accepted: go to contract */}
         {proposal.status === 'ACCEPTED' && (
           <Link href={`/comercial/contracts/new?proposal_id=${id}`}
             className="rounded-md bg-white/[0.06] border border-white/[0.08] px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-white/10 transition-colors">
@@ -154,7 +167,7 @@ export default async function ProposalDetailPage({ params }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {group.items.map(item => (
+                {group.items.map((item: any) => (
                   <tr key={item.id} className="border-b border-white/[0.04] last:border-0">
                     <td className="px-4 py-2.5 text-zinc-200">
                       {item.description}

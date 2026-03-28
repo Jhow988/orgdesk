@@ -2,6 +2,7 @@ import { auth } from '@/auth'
 import { prisma } from '@/lib/prisma'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { LabelBadge } from '../_components/LabelSelector'
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   DRAFT:    { label: 'Rascunho',    className: 'bg-white/[0.08] text-zinc-400' },
@@ -18,7 +19,10 @@ export default async function ProposalsPage() {
 
   const proposals = await prisma.proposal.findMany({
     where: { organization_id: session.user.orgId },
-    include: { client: { select: { name: true } } },
+    include: {
+      client: { select: { name: true } },
+      labels: { include: { label: { select: { id: true, name: true, color: true } } } },
+    },
     orderBy: { created_at: 'desc' },
   })
 
@@ -57,7 +61,16 @@ export default async function ProposalsPage() {
               return (
                 <tr key={p.id} className="border-b border-white/[0.06] last:border-0 hover:bg-white/[0.03] transition-colors">
                   <td className="px-4 py-3 font-mono text-zinc-500 text-xs">#{String(p.number).padStart(4, '0')}</td>
-                  <td className="px-4 py-3 font-medium text-zinc-100">{p.title}</td>
+                  <td className="px-4 py-3">
+                    <p className="font-medium text-zinc-100">{p.title}</p>
+                    {((p as any).labels as {label:{id:string;name:string;color:string}}[])?.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {((p as any).labels as {label:{id:string;name:string;color:string}}[]).map(pl => (
+                          <LabelBadge key={pl.label.id} label={pl.label} />
+                        ))}
+                      </div>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-zinc-400">{p.client.name}</td>
                   <td className="px-4 py-3">
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${cfg.className}`}>{cfg.label}</span>

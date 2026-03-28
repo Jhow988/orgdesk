@@ -184,6 +184,7 @@ model Organization {
   bling_integration    BlingIntegration?
   account_receivables  AccountReceivable[]
   client_tech_sheets   ClientTechSheet[]
+  sales_labels         SalesLabel[]
 
   @@map("organizations")
 }
@@ -705,6 +706,7 @@ model Proposal {
   client       Client         @relation(fields: [client_id], references: [id])
   items        ProposalItem[]
   contracts    Contract[]
+  labels       ProposalLabel[]
 
   @@unique([organization_id, number])
   @@index([organization_id])
@@ -752,10 +754,50 @@ model Contract {
   organization Organization @relation(fields: [organization_id], references: [id])
   client       Client       @relation(fields: [client_id], references: [id])
   proposal     Proposal?    @relation(fields: [proposal_id], references: [id])
+  labels       ContractLabel[]
 
   @@index([organization_id])
   @@index([organization_id, client_id])
   @@map("contracts")
+}
+
+model SalesLabel {
+  id              String   @id @default(cuid())
+  organization_id String
+  name            String
+  color           String   @default("#6366f1")
+  description     String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  organization Organization   @relation(fields: [organization_id], references: [id])
+  proposals    ProposalLabel[]
+  contracts    ContractLabel[]
+
+  @@index([organization_id])
+  @@map("sales_labels")
+}
+
+model ProposalLabel {
+  proposal_id String
+  label_id    String
+
+  proposal Proposal   @relation(fields: [proposal_id], references: [id], onDelete: Cascade)
+  label    SalesLabel @relation(fields: [label_id], references: [id], onDelete: Cascade)
+
+  @@id([proposal_id, label_id])
+  @@map("proposal_labels")
+}
+
+model ContractLabel {
+  contract_id String
+  label_id    String
+
+  contract Contract   @relation(fields: [contract_id], references: [id], onDelete: Cascade)
+  label    SalesLabel @relation(fields: [label_id], references: [id], onDelete: Cascade)
+
+  @@id([contract_id, label_id])
+  @@map("contract_labels")
 }
 
 model PixCharge {

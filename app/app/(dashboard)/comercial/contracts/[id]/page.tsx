@@ -1,8 +1,9 @@
 import { auth } from '@/auth'
-import { prisma } from '@/lib/prisma'
+import { adminPrisma } from '@/lib/prisma'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import { sendContractAction, cancelContractAction } from '@/app/actions/contracts'
+import { LabelSelector } from '../../_components/LabelSelector'
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
   DRAFT:     { label: 'Rascunho',    className: 'bg-white/[0.08] text-zinc-400' },
@@ -20,19 +21,30 @@ export default async function ContractDetailPage({ params }: Props) {
   if (!session?.user?.orgId) redirect('/dashboard')
 
   const { id } = await params
-  const contract = await prisma.contract.findFirst({
-    where: { id, organization_id: session.user.orgId },
-    include: {
-      client: { select: { name: true, cnpj: true, email: true } },
-      proposal: { select: { title: true, number: true } },
-    },
-  })
+
+  const [contract, allLabels] = await Promise.all([
+    adminPrisma.contract.findFirst({
+      where: { id, organization_id: session.user.orgId },
+      include: {
+        client:   { select: { name: true, cnpj: true, email: true } },
+        proposal: { select: { title: true, number: true } },
+        labels:   { include: { label: { select: { id: true, name: true, color: true } } } },
+      },
+    }),
+    adminPrisma.salesLabel.findMany({
+      where:   { organization_id: session.user.orgId },
+      orderBy: { name: 'asc' },
+    }),
+  ])
+
   if (!contract) notFound()
 
   const cfg = STATUS_CONFIG[contract.status] ?? STATUS_CONFIG.DRAFT
   const portalLink = contract.sign_token
     ? `${process.env.NEXTAUTH_URL ?? ''}/portal/contracts/${contract.sign_token}`
     : null
+
+  const currentLabels = contract.labels.map(cl => cl.label)
 
   return (
     <div className="p-6 max-w-4xl">
@@ -49,6 +61,14 @@ export default async function ContractDetailPage({ params }: Props) {
           {contract.proposal && <> · Proposta #{String(contract.proposal.number).padStart(4,'0')}</>}
           {contract.expires_at && <> · Expira em {new Date(contract.expires_at).toLocaleDateString('pt-BR')}</>}
         </p>
+        <div className="mt-3">
+          <LabelSelector
+            entityType="contract"
+            entityId={id}
+            allLabels={allLabels}
+            currentLabels={currentLabels}
+          />
+        </div>
       </div>
 
       <div className="mb-6 flex flex-wrap gap-2">
@@ -77,10 +97,10 @@ export default async function ContractDetailPage({ params }: Props) {
 
       <div className="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
         {[
-          { label: 'Criado', value: contract.created_at },
-          { label: 'Enviado', value: contract.sent_at },
-          { label: 'Visualizado', value: contract.viewed_at },
-          { label: 'Assinado', value: contract.signed_at },
+          { label: 'Criado',      value: contract.created_at },
+          { label: 'Enviado',     value: contract.sent_at    },
+          { label: 'Visualizado', value: contract.viewed_at  },
+          { label: 'Assinado',    value: contract.signed_at  },
         ].map(({ label, value }) => (
           <div key={label} className="rounded-lg border border-white/[0.08] bg-white/[0.04] p-3">
             <p className="text-xs text-zinc-500">{label}</p>
