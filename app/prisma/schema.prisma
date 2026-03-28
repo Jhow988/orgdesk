@@ -350,6 +350,9 @@ model ClientTechSheet {
   contact_phone   String?
   contact_email   String?
 
+  // Status
+  status          String   @default("ACTIVE")
+
   // Anotações gerais
   notes           String?  @db.Text
 

@@ -35,6 +35,7 @@ export interface ClientWithSheet {
   name:           string
   cnpj:           string
   hasSheet:       boolean
+  status:         string
   remoteTool:     string | null
   remoteId:       string | null
   gateway:        string | null
@@ -82,7 +83,7 @@ export async function listTechSheetsAction(): Promise<ClientWithSheet[]> {
     select:  {
       id: true, name: true, cnpj: true,
       tech_sheet: {
-        select: { id: true, remote_tool: true, remote_id: true, gateway: true, contact_name: true, contact_role: true, updated_at: true },
+        select: { id: true, remote_tool: true, remote_id: true, gateway: true, contact_name: true, contact_role: true, updated_at: true, status: true },
       },
     },
     orderBy: { name: 'asc' },
@@ -92,6 +93,7 @@ export async function listTechSheetsAction(): Promise<ClientWithSheet[]> {
     name:           c.name,
     cnpj:           c.cnpj,
     hasSheet:       true,
+    status:         c.tech_sheet?.status       ?? 'ACTIVE',
     remoteTool:     c.tech_sheet?.remote_tool  ?? null,
     remoteId:       c.tech_sheet?.remote_id    ?? null,
     gateway:        c.tech_sheet?.gateway      ?? null,

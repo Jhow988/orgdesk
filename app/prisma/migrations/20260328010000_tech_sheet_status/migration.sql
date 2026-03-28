@@ -1,0 +1,1 @@
+ALTER TABLE "client_tech_sheets" ADD COLUMN IF NOT EXISTS "status" TEXT NOT NULL DEFAULT 'ACTIVE';

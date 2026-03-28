@@ -78,10 +78,25 @@ export async function cancelContractAction(id: string) {
   const denied = await checkModuleAccess('contracts', 'EDIT')
   if (denied) return
   const { orgId, userId } = await requireOrg()
+
+  const contract = await prisma.contract.findFirst({
+    where: { id, organization_id: orgId },
+    select: { client_id: true },
+  })
+
   await prisma.contract.updateMany({
     where: { id, organization_id: orgId },
     data: { status: 'CANCELLED' },
   })
+
+  if (contract?.client_id) {
+    await prisma.clientTechSheet.updateMany({
+      where: { client_id: contract.client_id, organization_id: orgId },
+      data: { status: 'CANCELLED' },
+    })
+  }
+
   await logActivity({ orgId, userId, action: 'contract.cancelled', entity: 'contract', entityId: id })
   revalidatePath(`/comercial/contracts/${id}`)
+  revalidatePath('/tickets/fichas')
 }

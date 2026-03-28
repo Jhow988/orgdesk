@@ -382,9 +382,14 @@ export function FichasClient({ clients: initial }: { clients: ClientWithSheet[] 
           </thead>
           <tbody className="divide-y divide-white/[0.04]">
             {filtered.map(c => (
-              <tr key={c.id} className="hover:bg-white/[0.02] transition-colors cursor-pointer" onClick={() => setSelected(c)}>
+              <tr key={c.id} className={`hover:bg-white/[0.02] transition-colors cursor-pointer ${c.status === 'CANCELLED' ? 'opacity-50' : ''}`} onClick={() => setSelected(c)}>
                 <td className="px-4 py-3">
-                  <p className="font-semibold text-zinc-200">{c.name}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="font-semibold text-zinc-200">{c.name}</p>
+                    {c.status === 'CANCELLED' && (
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold uppercase bg-red-900/40 text-red-400 border border-red-800/40">Cancelado</span>
+                    )}
+                  </div>
                   <p className="text-[11px] text-zinc-600 font-mono">{fmtCnpj(c.cnpj)}</p>
                 </td>
                 <td className="px-4 py-3">
