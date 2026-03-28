@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useActionState } from 'react'
-import { Plus, Pencil, Trash2, X, Tag } from 'lucide-react'
+import { Plus, Pencil, Trash2, Tag } from 'lucide-react'
 import { createLabelAction, updateLabelAction, deleteLabelAction } from '@/app/actions/labels'
 
 const PRESET_COLORS = [
@@ -33,16 +33,18 @@ function LabelForm({
   onDone,
 }: {
   label?: Label
-  onDone: () => void
+  onDone: (created?: Label) => void
 }) {
   const action = label ? updateLabelAction : createLabelAction
   const [state, formAction, isPending] = useActionState(action, null)
   const [color, setColor] = useState(label?.color ?? '#6366f1')
+  const [name, setName] = useState(label?.name ?? '')
+  const [description, setDescription] = useState(label?.description ?? '')
 
   return (
     <form action={async (fd) => {
-      const result = await formAction(fd)
-      if ((result as any)?.ok) onDone()
+      const result = await formAction(fd) as any
+      if (result?.ok) onDone(result.label)
     }} className="space-y-4 rounded-xl border border-white/[0.08] bg-white/[0.03] p-5">
       {label && <input type="hidden" name="id" value={label.id} />}
 
@@ -52,14 +54,14 @@ function LabelForm({
 
       <div>
         <label className="block mb-1 text-xs font-medium text-zinc-400">Nome *</label>
-        <input name="name" required defaultValue={label?.name}
+        <input name="name" required value={name} onChange={e => setName(e.target.value)}
           placeholder="Ex: Cliente VIP, Urgente, Renovação…"
           className="w-full rounded-md border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:border-white/20 focus:outline-none" />
       </div>
 
       <div>
         <label className="block mb-1 text-xs font-medium text-zinc-400">Descrição</label>
-        <input name="description" defaultValue={label?.description ?? ''}
+        <input name="description" value={description} onChange={e => setDescription(e.target.value)}
           placeholder="Para que serve essa etiqueta…"
           className="w-full rounded-md border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:border-white/20 focus:outline-none" />
       </div>
@@ -76,7 +78,7 @@ function LabelForm({
         <input type="hidden" name="color" value={color} />
         <div className="mt-3 flex items-center gap-3">
           <span className="text-xs text-zinc-500">Pré-visualização:</span>
-          <LabelBadge label={{ id: '', name: 'Exemplo', color, description: null }} />
+          <LabelBadge label={{ id: '', name: name || 'Exemplo', color, description: null }} />
         </div>
       </div>
 
@@ -85,7 +87,7 @@ function LabelForm({
           className="rounded-md bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50 transition-colors">
           {isPending ? 'Salvando…' : label ? 'Salvar alterações' : 'Criar etiqueta'}
         </button>
-        <button type="button" onClick={onDone}
+        <button type="button" onClick={() => onDone()}
           className="rounded-md border border-white/[0.1] px-4 py-1.5 text-sm text-zinc-400 hover:text-zinc-200 transition-colors">
           Cancelar
         </button>
@@ -100,6 +102,16 @@ export function LabelsClient({ labels: initial, isAdmin }: { labels: Label[]; is
   const [editing, setEditing] = useState<string | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
 
+  function handleCreated(created?: Label) {
+    setCreating(false)
+    if (created) setLabels(ls => [...ls, created])
+  }
+
+  function handleUpdated(updated?: Label) {
+    setEditing(null)
+    if (updated) setLabels(ls => ls.map(l => l.id === updated.id ? updated : l))
+  }
+
   async function handleDelete(id: string) {
     if (!confirm('Excluir esta etiqueta? Ela será removida de todas as propostas e contratos.')) return
     setDeleting(id)
@@ -110,15 +122,23 @@ export function LabelsClient({ labels: initial, isAdmin }: { labels: Label[]; is
 
   return (
     <div className="space-y-4">
-      {isAdmin && !creating && (
-        <button onClick={() => setCreating(true)}
-          className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 transition-colors">
-          <Plus size={15} /> Nova etiqueta
-        </button>
-      )}
+      {/* Header with count + create button */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-zinc-500">
+          {labels.length === 0
+            ? 'Nenhuma etiqueta criada'
+            : `${labels.length} etiqueta${labels.length !== 1 ? 's' : ''} criada${labels.length !== 1 ? 's' : ''}`}
+        </p>
+        {isAdmin && !creating && (
+          <button onClick={() => setCreating(true)}
+            className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 transition-colors">
+            <Plus size={15} /> Nova etiqueta
+          </button>
+        )}
+      </div>
 
       {creating && isAdmin && (
-        <LabelForm onDone={() => { setCreating(false); window.location.reload() }} />
+        <LabelForm onDone={handleCreated} />
       )}
 
       {labels.length === 0 && !creating && (
@@ -133,15 +153,13 @@ export function LabelsClient({ labels: initial, isAdmin }: { labels: Label[]; is
         {labels.map(label => (
           <div key={label.id}>
             {editing === label.id && isAdmin ? (
-              <LabelForm label={label} onDone={() => { setEditing(null); window.location.reload() }} />
+              <LabelForm label={label} onDone={handleUpdated} />
             ) : (
               <div className="flex items-center justify-between rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3">
                 <div className="flex items-center gap-3">
                   <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: label.color }} />
                   <div>
-                    <div className="flex items-center gap-2">
-                      <LabelBadge label={label} />
-                    </div>
+                    <LabelBadge label={label} />
                     {label.description && (
                       <p className="text-xs text-zinc-600 mt-0.5">{label.description}</p>
                     )}

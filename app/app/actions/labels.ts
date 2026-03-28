@@ -36,11 +36,11 @@ export async function createLabelAction(_prev: unknown, formData: FormData) {
     const description = (formData.get('description') as string)?.trim() || null
     if (!name) return { error: 'Nome é obrigatório.' }
 
-    await prisma.salesLabel.create({
+    const label = await prisma.salesLabel.create({
       data: { organization_id: orgId, name, color, description },
     })
     revalidatePath('/comercial/labels')
-    return { ok: true }
+    return { ok: true, label }
   } catch (e: any) {
     return { error: e.message }
   }
@@ -60,7 +60,7 @@ export async function updateLabelAction(_prev: unknown, formData: FormData) {
       data:  { name, color, description },
     })
     revalidatePath('/comercial/labels')
-    return { ok: true }
+    return { ok: true, label: { id, name, color, description } }
   } catch (e: any) {
     return { error: e.message }
   }
