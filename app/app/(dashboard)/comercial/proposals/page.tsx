@@ -44,42 +44,35 @@ export default async function ProposalsPage() {
           <thead>
             <tr className="border-b border-white/[0.08] text-left text-xs text-zinc-500">
               <th className="px-4 py-3 font-medium">Nº</th>
-              <th className="px-4 py-3 font-medium">Título</th>
               <th className="px-4 py-3 font-medium">Cliente</th>
               <th className="px-4 py-3 font-medium">Status</th>
+              <th className="px-4 py-3 font-medium">Etiquetas</th>
               <th className="px-4 py-3 font-medium">Total</th>
-              <th className="px-4 py-3 font-medium">Validade</th>
               <th className="px-4 py-3 font-medium"></th>
             </tr>
           </thead>
           <tbody>
             {proposals.length === 0 ? (
-              <tr><td colSpan={7} className="px-4 py-10 text-center text-zinc-500">Nenhuma proposta criada.</td></tr>
+              <tr><td colSpan={6} className="px-4 py-10 text-center text-zinc-500">Nenhuma proposta criada.</td></tr>
             ) : proposals.map(p => {
               const cfg = STATUS_CONFIG[p.status] ?? STATUS_CONFIG.DRAFT
-              const expired = p.valid_until && new Date(p.valid_until) < new Date() && p.status === 'SENT'
+              const labels = (p as any).labels as {label:{id:string;name:string;color:string}}[]
               return (
                 <tr key={p.id} className="border-b border-white/[0.06] last:border-0 hover:bg-white/[0.03] transition-colors">
                   <td className="px-4 py-3 font-mono text-zinc-500 text-xs">#{String(p.number).padStart(4, '0')}</td>
-                  <td className="px-4 py-3">
-                    <p className="font-medium text-zinc-100">{p.title}</p>
-                    {((p as any).labels as {label:{id:string;name:string;color:string}}[])?.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {((p as any).labels as {label:{id:string;name:string;color:string}}[]).map(pl => (
-                          <LabelBadge key={pl.label.id} label={pl.label} />
-                        ))}
-                      </div>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-zinc-400">{p.client.name}</td>
+                  <td className="px-4 py-3 text-zinc-200 font-medium">{p.client.name}</td>
                   <td className="px-4 py-3">
                     <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${cfg.className}`}>{cfg.label}</span>
                   </td>
+                  <td className="px-4 py-3">
+                    {labels?.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {labels.map(pl => <LabelBadge key={pl.label.id} label={pl.label} />)}
+                      </div>
+                    ) : <span className="text-zinc-700">—</span>}
+                  </td>
                   <td className="px-4 py-3 font-mono text-zinc-300">
                     {Number(p.total).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                  </td>
-                  <td className={`px-4 py-3 text-xs ${expired ? 'text-red-400' : 'text-zinc-500'}`}>
-                    {p.valid_until ? new Date(p.valid_until).toLocaleDateString('pt-BR') : '—'}
                   </td>
                   <td className="px-4 py-3">
                     <Link href={`/comercial/proposals/${p.id}`} className="text-xs text-zinc-500 hover:text-zinc-200 transition-colors">
