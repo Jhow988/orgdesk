@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import {
-  Search, Plus, Eye, Pencil, Trash2, X, Copy, Check,
+  Search, Eye, Pencil, Trash2, X, Copy, Check,
   Monitor, Wifi, Package, Users, FileText, Save, Info, Clock,
 } from 'lucide-react'
 import {
@@ -366,10 +366,6 @@ export function FichasClient({ clients: initial }: { clients: ClientWithSheet[] 
             placeholder="IP do Gateway…"
             className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] pl-8 pr-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:border-white/20 focus:outline-none" />
         </div>
-        <button onClick={() => setSearch('')}
-          className="ml-auto inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 transition-colors">
-          <Plus size={15} /> Nova Ficha
-        </button>
       </div>
 
       {/* Table */}

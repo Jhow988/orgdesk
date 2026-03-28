@@ -38,8 +38,16 @@ export async function createContractAction(_prev: unknown, formData: FormData) {
     },
   })
 
+  // Auto-create tech sheet for the client if it doesn't exist yet
+  await prisma.clientTechSheet.upsert({
+    where:  { client_id },
+    create: { organization_id: orgId, client_id },
+    update: {},
+  })
+
   await logActivity({ orgId, userId, action: 'contract.created', entity: 'contract', entityId: contract.id, payload: { title } })
   revalidatePath('/comercial/contracts')
+  revalidatePath('/tickets/fichas')
   redirect('/comercial/contracts')
 }
 

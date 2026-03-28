@@ -78,7 +78,7 @@ function mapSheet(sheet: any, client: { id: string; name: string; cnpj: string }
 export async function listTechSheetsAction(): Promise<ClientWithSheet[]> {
   const orgId = await requireOrg()
   const clients = await prisma.client.findMany({
-    where:   { organization_id: orgId },
+    where:   { organization_id: orgId, tech_sheet: { isNot: null } },
     select:  {
       id: true, name: true, cnpj: true,
       tech_sheet: {
@@ -91,7 +91,7 @@ export async function listTechSheetsAction(): Promise<ClientWithSheet[]> {
     id:             c.id,
     name:           c.name,
     cnpj:           c.cnpj,
-    hasSheet:       !!c.tech_sheet,
+    hasSheet:       true,
     remoteTool:     c.tech_sheet?.remote_tool  ?? null,
     remoteId:       c.tech_sheet?.remote_id    ?? null,
     gateway:        c.tech_sheet?.gateway      ?? null,
@@ -109,11 +109,8 @@ export async function getTechSheetAction(clientId: string): Promise<TechSheet> {
   })
   if (!client) throw new Error('Cliente não encontrado')
 
-  const sheet = await prisma.clientTechSheet.upsert({
-    where:  { client_id: clientId },
-    create: { organization_id: orgId, client_id: clientId },
-    update: {},
-  })
+  const sheet = await prisma.clientTechSheet.findUnique({ where: { client_id: clientId } })
+  if (!sheet) throw new Error('Ficha técnica não encontrada')
   return mapSheet(sheet, client)
 }
 
