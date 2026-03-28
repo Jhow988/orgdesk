@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useActionState } from 'react'
+import { useState, useTransition } from 'react'
 import { Plus, Pencil, Trash2, Tag } from 'lucide-react'
 import { createLabelAction, updateLabelAction, deleteLabelAction } from '@/app/actions/labels'
 
@@ -33,24 +33,35 @@ function LabelForm({
   onDone,
 }: {
   label?: Label
-  onDone: (created?: Label) => void
+  onDone: (saved?: Label) => void
 }) {
-  const action = label ? updateLabelAction : createLabelAction
-  const [state, formAction, isPending] = useActionState(action, null)
+  const [isPending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
   const [color, setColor] = useState(label?.color ?? '#6366f1')
   const [name, setName] = useState(label?.name ?? '')
   const [description, setDescription] = useState(label?.description ?? '')
 
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault()
+    const fd = new FormData(e.currentTarget)
+    setError(null)
+    startTransition(async () => {
+      const result = label
+        ? await updateLabelAction(null, fd) as any
+        : await createLabelAction(null, fd) as any
+      if (result?.error) {
+        setError(result.error)
+      } else if (result?.ok) {
+        onDone(result.label)
+      }
+    })
+  }
+
   return (
-    <form action={async (fd) => {
-      const result = await formAction(fd) as any
-      if (result?.ok) onDone(result.label)
-    }} className="space-y-4 rounded-xl border border-white/[0.08] bg-white/[0.03] p-5">
+    <form onSubmit={handleSubmit} className="space-y-4">
       {label && <input type="hidden" name="id" value={label.id} />}
 
-      {(state as any)?.error && (
-        <p className="text-sm text-red-400">{(state as any).error}</p>
-      )}
+      {error && <p className="text-sm text-red-400">{error}</p>}
 
       <div>
         <label className="block mb-1 text-xs font-medium text-zinc-400">Nome *</label>
@@ -103,13 +114,13 @@ export function LabelsClient({ labels: initial, isAdmin }: { labels: Label[]; is
   const [deleting, setDeleting] = useState<string | null>(null)
 
   function handleCreated(created?: Label) {
-    setCreating(false)
     if (created) setLabels(ls => [...ls, created])
+    setCreating(false)
   }
 
   function handleUpdated(updated?: Label) {
-    setEditing(null)
     if (updated) setLabels(ls => ls.map(l => l.id === updated.id ? updated : l))
+    setEditing(null)
   }
 
   async function handleDelete(id: string) {
@@ -121,67 +132,84 @@ export function LabelsClient({ labels: initial, isAdmin }: { labels: Label[]; is
   }
 
   return (
-    <div className="space-y-4">
-      {/* Header with count + create button */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-zinc-500">
-          {labels.length === 0
-            ? 'Nenhuma etiqueta criada'
-            : `${labels.length} etiqueta${labels.length !== 1 ? 's' : ''} criada${labels.length !== 1 ? 's' : ''}`}
-        </p>
-        {isAdmin && !creating && (
-          <button onClick={() => setCreating(true)}
-            className="inline-flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 transition-colors">
-            <Plus size={15} /> Nova etiqueta
-          </button>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+
+      {/* LEFT — form / create button */}
+      <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-zinc-200">
+            {creating ? 'Nova etiqueta' : editing ? 'Editar etiqueta' : 'Etiquetas'}
+          </h2>
+          {isAdmin && !creating && !editing && (
+            <button onClick={() => setCreating(true)}
+              className="inline-flex items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-500 transition-colors">
+              <Plus size={13} /> Nova etiqueta
+            </button>
+          )}
+        </div>
+
+        {creating && isAdmin && (
+          <LabelForm onDone={handleCreated} />
+        )}
+
+        {editing && isAdmin && (() => {
+          const lbl = labels.find(l => l.id === editing)
+          return lbl ? <LabelForm label={lbl} onDone={handleUpdated} /> : null
+        })()}
+
+        {!creating && !editing && (
+          <p className="text-sm text-zinc-500">
+            Clique em <span className="text-zinc-300 font-medium">Nova etiqueta</span> para criar uma etiqueta e aplicar em propostas e contratos.
+          </p>
         )}
       </div>
 
-      {creating && isAdmin && (
-        <LabelForm onDone={handleCreated} />
-      )}
-
-      {labels.length === 0 && !creating && (
-        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] px-6 py-10 text-center">
-          <Tag size={24} className="mx-auto mb-3 text-zinc-700" />
-          <p className="text-sm text-zinc-500">Nenhuma etiqueta criada ainda.</p>
-          {isAdmin && <p className="text-xs text-zinc-700 mt-1">Clique em "Nova etiqueta" para começar.</p>}
+      {/* RIGHT — labels list */}
+      <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-semibold text-zinc-200">Etiquetas criadas</h2>
+          <span className="text-xs text-zinc-500">
+            {labels.length === 0 ? 'Nenhuma' : `${labels.length} etiqueta${labels.length !== 1 ? 's' : ''}`}
+          </span>
         </div>
-      )}
 
-      <div className="space-y-2">
-        {labels.map(label => (
-          <div key={label.id}>
-            {editing === label.id && isAdmin ? (
-              <LabelForm label={label} onDone={handleUpdated} />
-            ) : (
-              <div className="flex items-center justify-between rounded-xl border border-white/[0.06] bg-white/[0.02] px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: label.color }} />
-                  <div>
+        {labels.length === 0 ? (
+          <div className="py-8 text-center">
+            <Tag size={22} className="mx-auto mb-2 text-zinc-700" />
+            <p className="text-sm text-zinc-600">Nenhuma etiqueta criada ainda.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {labels.map(label => (
+              <div key={label.id}
+                className="flex items-center justify-between rounded-lg border border-white/[0.06] bg-white/[0.02] px-3 py-2.5">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: label.color }} />
+                  <div className="min-w-0">
                     <LabelBadge label={label} />
                     {label.description && (
-                      <p className="text-xs text-zinc-600 mt-0.5">{label.description}</p>
+                      <p className="text-xs text-zinc-600 mt-0.5 truncate">{label.description}</p>
                     )}
                   </div>
                 </div>
                 {isAdmin && (
-                  <div className="flex items-center gap-1">
-                    <button onClick={() => setEditing(label.id)}
+                  <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                    <button onClick={() => { setCreating(false); setEditing(label.id) }}
                       className="p-1.5 rounded text-zinc-600 hover:text-indigo-400 transition-colors">
-                      <Pencil size={13} />
+                      <Pencil size={12} />
                     </button>
                     <button onClick={() => handleDelete(label.id)} disabled={deleting === label.id}
                       className="p-1.5 rounded text-zinc-600 hover:text-red-400 transition-colors disabled:opacity-40">
-                      <Trash2 size={13} />
+                      <Trash2 size={12} />
                     </button>
                   </div>
                 )}
               </div>
-            )}
+            ))}
           </div>
-        ))}
+        )}
       </div>
+
     </div>
   )
 }
