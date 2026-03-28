@@ -2,7 +2,7 @@ import { auth } from '@/auth'
 import { adminPrisma } from '@/lib/prisma'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
-import { updateProposalStatusAction, sendProposalEmailAction } from '@/app/actions/proposals'
+import { updateProposalStatusAction, sendProposalEmailAction, acceptProposalAction } from '@/app/actions/proposals'
 import { LabelSelector } from '../../_components/LabelSelector'
 
 const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
@@ -36,9 +36,10 @@ export default async function ProposalDetailPage({ params }: Props) {
     adminPrisma.proposal.findFirst({
       where: { id, organization_id: session.user.orgId },
       include: {
-        client: { select: { name: true, cnpj: true, email: true } },
-        items:  { orderBy: { sort_order: 'asc' } },
-        labels: { include: { label: { select: { id: true, name: true, color: true } } } },
+        client:   { select: { name: true, cnpj: true, email: true } },
+        items:    { orderBy: { sort_order: 'asc' } },
+        labels:   { include: { label: { select: { id: true, name: true, color: true } } } },
+        contract: { select: { id: true, title: true, status: true } },
       },
     }),
     adminPrisma.salesLabel.findMany({
@@ -126,12 +127,12 @@ export default async function ProposalDetailPage({ params }: Props) {
           <>
             <form action={async () => {
               'use server'
-              await updateProposalStatusAction(id, 'ACCEPTED')
-              redirect(`/comercial/contracts/new?proposal_id=${id}`)
+              const result = await acceptProposalAction(id)
+              if (result?.contractId) redirect(`/comercial/contracts/${result.contractId}`)
             }}>
               <button type="submit"
                 className="rounded-md bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-500 transition-colors">
-                Proposta Aceita → Gerar Contrato
+                Proposta Aceita → Ver Contrato
               </button>
             </form>
             <form action={async () => { 'use server'; await updateProposalStatusAction(id, 'REJECTED') }}>
@@ -142,10 +143,10 @@ export default async function ProposalDetailPage({ params }: Props) {
             </form>
           </>
         )}
-        {proposal.status === 'ACCEPTED' && (
-          <Link href={`/comercial/contracts/new?proposal_id=${id}`}
+        {proposal.status === 'ACCEPTED' && (proposal as any).contract_id && (
+          <Link href={`/comercial/contracts/${(proposal as any).contract_id}`}
             className="rounded-md bg-white/[0.06] border border-white/[0.08] px-4 py-2 text-sm font-medium text-zinc-200 hover:bg-white/10 transition-colors">
-            Gerar contrato
+            Ver contrato
           </Link>
         )}
       </div>

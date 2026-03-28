@@ -6,12 +6,16 @@ import { ProposalForm } from '../_components/ProposalForm'
 import { createProposalAction } from '@/app/actions/proposals'
 import { checkModuleAccess } from '@/app/actions/permissions'
 
-export default async function NewProposalPage() {
+interface Props { searchParams: Promise<{ client_id?: string }> }
+
+export default async function NewProposalPage({ searchParams }: Props) {
   const session = await auth()
   if (!session?.user?.orgId) redirect('/dashboard')
 
   const denied = await checkModuleAccess('proposals', 'CREATE')
   if (denied) redirect('/comercial/proposals')
+
+  const { client_id } = await searchParams
 
   const [clients, products] = await Promise.all([
     prisma.client.findMany({
@@ -34,7 +38,12 @@ export default async function NewProposalPage() {
         </Link>
         <h1 className="mt-3 text-xl font-semibold text-zinc-100">Nova proposta</h1>
       </div>
-      <ProposalForm action={createProposalAction} clients={clients} products={products as any} />
+      <ProposalForm
+        action={createProposalAction}
+        clients={clients}
+        products={products as any}
+        defaultValues={client_id ? { client_id } : undefined}
+      />
     </div>
   )
 }

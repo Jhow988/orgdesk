@@ -153,6 +153,68 @@ export async function updateProposalStatusAction(id: string, status: string) {
   revalidatePath(`/comercial/proposals/${id}`)
 }
 
+export async function acceptProposalAction(proposalId: string) {
+  const denied = await checkModuleAccess('proposals', 'EDIT')
+  if (denied) return { error: denied }
+  const { orgId, userId } = await requireOrg()
+
+  const proposal = await prisma.proposal.findFirst({
+    where: { id: proposalId, organization_id: orgId },
+    select: { id: true, client_id: true, title: true, status: true },
+  })
+  if (!proposal) return { error: 'Proposta não encontrada.' }
+
+  // Mark proposal as ACCEPTED
+  await prisma.proposal.update({
+    where: { id: proposalId },
+    data: { status: 'ACCEPTED', accepted_at: new Date() },
+  })
+
+  // Find existing contract for this client (take the most recent active one)
+  let contract = await prisma.contract.findFirst({
+    where: {
+      organization_id: orgId,
+      client_id: proposal.client_id,
+      status: { not: 'CANCELLED' },
+    },
+    orderBy: { created_at: 'desc' },
+  })
+
+  if (!contract) {
+    // Create a new contract for the client
+    const crypto = await import('crypto')
+    contract = await prisma.contract.create({
+      data: {
+        organization_id: orgId,
+        client_id: proposal.client_id,
+        proposal_id: proposalId,
+        title: `Contrato — ${proposal.title}`,
+      },
+    })
+    // Auto-create tech sheet
+    await prisma.clientTechSheet.upsert({
+      where:  { client_id: proposal.client_id },
+      create: { organization_id: orgId, client_id: proposal.client_id },
+      update: {},
+    })
+    await logActivity({ orgId, userId, action: 'contract.created', entity: 'contract', entityId: contract.id, payload: { title: contract.title } })
+    revalidatePath('/comercial/contracts')
+    revalidatePath('/tickets/fichas')
+  }
+
+  // Link proposal to the contract
+  await prisma.proposal.update({
+    where: { id: proposalId },
+    data: { contract_id: contract.id },
+  })
+
+  await logActivity({ orgId, userId, action: 'proposal.accepted', entity: 'proposal', entityId: proposalId, payload: { contractId: contract.id } })
+  revalidatePath(`/comercial/proposals/${proposalId}`)
+  revalidatePath(`/comercial/contracts/${contract.id}`)
+
+  return { ok: true, contractId: contract.id }
+}
+
 export async function sendProposalEmailAction(id: string) {
   const denied = await checkModuleAccess('proposals', 'EDIT')
   if (denied) return { error: denied }

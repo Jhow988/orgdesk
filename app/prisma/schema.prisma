@@ -684,6 +684,7 @@ model Proposal {
   id              String         @id @default(cuid())
   organization_id String
   client_id       String
+  contract_id     String?
   number          Int
   title           String
   status          ProposalStatus @default(DRAFT)
@@ -702,11 +703,12 @@ model Proposal {
   created_at      DateTime       @default(now())
   updated_at      DateTime       @updatedAt
 
-  organization Organization   @relation(fields: [organization_id], references: [id])
-  client       Client         @relation(fields: [client_id], references: [id])
-  items        ProposalItem[]
-  contracts    Contract[]
-  labels       ProposalLabel[]
+  organization    Organization   @relation(fields: [organization_id], references: [id])
+  client          Client         @relation(fields: [client_id], references: [id])
+  contract        Contract?      @relation("ProposalToContract", fields: [contract_id], references: [id])
+  items           ProposalItem[]
+  origin_contracts Contract[]    @relation("ContractOriginProposal")
+  labels          ProposalLabel[]
 
   @@unique([organization_id, number])
   @@index([organization_id])
@@ -751,9 +753,10 @@ model Contract {
   created_at      DateTime       @default(now())
   updated_at      DateTime       @updatedAt
 
-  organization Organization @relation(fields: [organization_id], references: [id])
-  client       Client       @relation(fields: [client_id], references: [id])
-  proposal     Proposal?    @relation(fields: [proposal_id], references: [id])
+  organization Organization  @relation(fields: [organization_id], references: [id])
+  client       Client        @relation(fields: [client_id], references: [id])
+  proposal     Proposal?     @relation("ContractOriginProposal", fields: [proposal_id], references: [id])
+  proposals    Proposal[]    @relation("ProposalToContract")
   labels       ContractLabel[]
 
   @@index([organization_id])
