@@ -19,7 +19,7 @@ export function ArticleForm({ action, defaultValues }: Props) {
 
   const inp = 'w-full rounded-md border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:border-white/20 focus:outline-none'
   const lbl = 'block mb-1 text-xs font-medium text-zinc-400'
-  const sel = `${inp} cursor-pointer`
+  const sel = `${inp} cursor-pointer bg-zinc-900`
 
   return (
     <form action={formAction} className="space-y-5">

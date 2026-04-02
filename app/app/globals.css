@@ -24,3 +24,19 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Select dropdowns — force dark background on native listbox */
+select {
+  background-color: #18181b !important; /* zinc-900 */
+  color-scheme: dark;
+}
+
+select option {
+  background-color: #18181b !important; /* zinc-900 */
+  color: #f4f4f5 !important;            /* zinc-100 */
+}
+
+select option:checked {
+  background-color: #4f46e5 !important; /* indigo-600 */
+  color: #ffffff !important;
+}
