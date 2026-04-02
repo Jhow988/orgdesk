@@ -7,14 +7,13 @@ import Image from '@tiptap/extension-image'
 import Youtube from '@tiptap/extension-youtube'
 import TextAlign from '@tiptap/extension-text-align'
 import Underline from '@tiptap/extension-underline'
-import TextStyle from '@tiptap/extension-text-style'
 import { useState, useCallback } from 'react'
 import {
   Bold, Italic, Underline as UnderlineIcon, Strikethrough,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
   List, ListOrdered, Quote, Minus, Link2, ImageIcon,
-  Youtube as YoutubeIcon, Code, Code2, Undo, Redo,
-  Heading1, Heading2, Heading3, IndentIcon,
+  Video, Code, Code2, Undo, Redo,
+  Heading1, Heading2, Heading3,
 } from 'lucide-react'
 
 const btn = (active = false) =>
@@ -54,7 +53,6 @@ export function RichEditor({ name, defaultValue = '' }: RichEditorProps) {
     extensions: [
       StarterKit.configure({ codeBlock: { HTMLAttributes: { class: 'bg-zinc-800 text-zinc-200 rounded p-3 font-mono text-xs' } } }),
       Underline,
-      TextStyle,
       Link.configure({ openOnClick: false, HTMLAttributes: { class: 'text-indigo-400 underline' } }),
       Image.configure({ HTMLAttributes: { class: 'max-w-full rounded-lg my-2' } }),
       Youtube.configure({ width: 640, height: 360, HTMLAttributes: { class: 'rounded-lg my-2 w-full aspect-video' } }),
@@ -71,9 +69,9 @@ export function RichEditor({ name, defaultValue = '' }: RichEditorProps) {
   const addLink = useCallback(() => {
     if (!editor) return
     const url = window.prompt('URL do link:')
-    if (!url) return
+    if (url === null) return
     if (url === '') {
-      editor.chain().focus().extendMarkToLink({ href: '' }).unsetLink().run()
+      editor.chain().focus().unsetLink().run()
     } else {
       editor.chain().focus().setLink({ href: url, target: '_blank' }).run()
     }
@@ -97,7 +95,7 @@ export function RichEditor({ name, defaultValue = '' }: RichEditorProps) {
       setRawHtml(editor.getHTML())
       setHtmlMode(true)
     } else {
-      editor.commands.setContent(rawHtml, false)
+      editor.commands.setContent(rawHtml)
       setHtmlMode(false)
     }
   }
@@ -215,7 +213,7 @@ export function RichEditor({ name, defaultValue = '' }: RichEditorProps) {
           <ImageIcon size={13} />
         </ToolbarButton>
         <ToolbarButton title="Inserir vídeo do YouTube" onClick={addYoutube}>
-          <YoutubeIcon size={13} />
+          <Video size={13} />
         </ToolbarButton>
 
         <div className={sep} />
