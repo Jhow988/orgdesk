@@ -1,6 +1,7 @@
 'use client'
 
 import { useActionState } from 'react'
+import { RichEditor } from './RichEditor'
 
 interface Props {
   action: (prev: unknown, formData: FormData) => Promise<any>
@@ -63,10 +64,11 @@ export function ArticleForm({ action, defaultValues }: Props) {
 
       <div>
         <label className={lbl}>Conteúdo *</label>
-        <p className="text-xs text-zinc-600 mb-1.5">Suporta formatação em texto simples. Use linhas em branco para separar parágrafos.</p>
-        <textarea name="content" required rows={18} defaultValue={defaultValues?.content}
-          placeholder="Escreva o conteúdo do artigo aqui…"
-          className={`${inp} resize-y font-mono text-xs leading-relaxed`} />
+        <p className="text-xs text-zinc-600 mb-1.5">
+          Use a barra de ferramentas para formatar texto, inserir links, imagens e vídeos. Clique em{' '}
+          <span className="font-mono text-amber-400">&lt;/&gt;</span> para editar o HTML diretamente.
+        </p>
+        <RichEditor name="content" defaultValue={defaultValues?.content ?? ''} />
       </div>
 
       <div className="flex items-center gap-3 pt-1">
