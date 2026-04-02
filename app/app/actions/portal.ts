@@ -30,12 +30,22 @@ export interface PortalTicket {
   messages:  PortalTicketMessage[]
 }
 
+export interface PortalArticle {
+  id:        string
+  title:     string
+  category:  string | null
+  content:   string
+  updatedAt: string
+}
+
 export interface PortalData {
   clientId:   string
   clientName: string
   clientCnpj: string
+  orgId:      string
   sends:      Send[]
   tickets:    PortalTicket[]
+  articles:   PortalArticle[]
 }
 
 function fmtCnpj(d: string) {
@@ -60,12 +70,12 @@ export async function verifyPortalAccessAction(
   if (!token || !email || !cnpj) return { error: 'Preencha todos os campos.' }
 
   type ClientRow = {
-    id: string; name: string; cnpj: string;
+    id: string; name: string; cnpj: string; organization_id: string;
     email: string | null; email_nfe: string | null; email_boleto: string | null;
   }
 
   const rows = await adminPrisma.$queryRaw<ClientRow[]>`
-    SELECT id, name, cnpj, email, email_nfe, email_boleto
+    SELECT id, name, cnpj, organization_id, email, email_nfe, email_boleto
     FROM clients
     WHERE portal_token = ${token}
     LIMIT 1
@@ -111,6 +121,24 @@ export async function verifyPortalAccessAction(
       : null,
   }))
 
+  // Fetch public knowledge articles for this org
+  const rawArticles = await adminPrisma.knowledgeArticle.findMany({
+    where:   { organization_id: client.organization_id, visibility: 'PUBLIC', status: 'PUBLISHED' } as any,
+    orderBy: [{ category: 'asc' }, { updated_at: 'desc' }],
+    select:  { id: true, title: true, category: true, content: true, updated_at: true },
+  })
+
+  const articles: PortalArticle[] = rawArticles.map((a: any) => ({
+    id:        a.id,
+    title:     a.title,
+    category:  a.category,
+    content:   a.content,
+    updatedAt: new Intl.DateTimeFormat('pt-BR', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      timeZone: 'America/Sao_Paulo',
+    }).format(a.updated_at),
+  }))
+
   // Fetch tickets (public messages only)
   const rawTickets = await adminPrisma.ticket.findMany({
     where:   { client_id: client.id },
@@ -145,8 +173,10 @@ export async function verifyPortalAccessAction(
       clientId:   client.id,
       clientName: client.name,
       clientCnpj: fmtCnpj(clientCnpjRaw),
+      orgId:      client.organization_id,
       sends,
       tickets,
+      articles,
     },
   }
 }

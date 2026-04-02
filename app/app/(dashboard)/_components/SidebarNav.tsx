@@ -6,7 +6,7 @@ import {
   LayoutDashboard, Building2, Receipt,
   Megaphone, BarChart2, MessageSquare, Users, Package,
   UserCog, FileCheck, FileSignature, Briefcase, Shield,
-  Settings, MapPin, Send, SendHorizonal, Mail, ClipboardList, BookOpen, Tag,
+  Settings, MapPin, Send, SendHorizonal, Mail, ClipboardList, BookOpen, Tag, LibraryBig,
 } from 'lucide-react'
 import type { AccessLevel } from '@/lib/modules'
 
@@ -62,9 +62,10 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Suporte',
     items: [
-      { href: '/tickets',            label: 'Chamados',       icon: MessageSquare, module: 'tickets' },
-      { href: '/tickets/fichas',    label: 'Fichas Técnicas', icon: BookOpen,      module: 'tickets' },
-      { href: '/tickets/relatorios', label: 'Relatórios',    icon: BarChart2,     module: 'tickets_relatorios' },
+      { href: '/tickets',                label: 'Chamados',           icon: MessageSquare, module: 'tickets' },
+      { href: '/tickets/fichas',        label: 'Fichas Técnicas',    icon: BookOpen,      module: 'tickets' },
+      { href: '/tickets/knowledge',     label: 'Base de Conhecimento', icon: LibraryBig,  module: 'tickets' },
+      { href: '/tickets/relatorios',    label: 'Relatórios',         icon: BarChart2,     module: 'tickets_relatorios' },
     ],
   },
   {

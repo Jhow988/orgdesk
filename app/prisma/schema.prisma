@@ -185,6 +185,7 @@ model Organization {
   account_receivables  AccountReceivable[]
   client_tech_sheets   ClientTechSheet[]
   sales_labels         SalesLabel[]
+  knowledge_articles   KnowledgeArticle[]
 
   @@map("organizations")
 }
@@ -762,6 +763,25 @@ model Contract {
   @@index([organization_id])
   @@index([organization_id, client_id])
   @@map("contracts")
+}
+
+model KnowledgeArticle {
+  id              String   @id @default(cuid())
+  organization_id String
+  title           String
+  content         String   @db.Text
+  category        String?
+  visibility      String   @default("PUBLIC")  // PUBLIC | INTERNAL
+  status          String   @default("DRAFT")   // DRAFT | PUBLISHED
+  created_by      String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organization_id], references: [id])
+
+  @@index([organization_id])
+  @@index([organization_id, visibility, status])
+  @@map("knowledge_articles")
 }
 
 model SalesLabel {

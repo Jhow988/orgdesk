@@ -4,7 +4,7 @@ import { useState } from 'react'
 import {
   FileText, Download, LogIn, Globe, MessageSquare,
   Plus, X, ChevronLeft, Send, Clock, CheckCircle2,
-  CircleDot, RefreshCw, AlertCircle,
+  CircleDot, RefreshCw, AlertCircle, BookOpen,
 } from 'lucide-react'
 import {
   verifyPortalAccessAction,
@@ -385,9 +385,76 @@ function TicketsList({
   )
 }
 
+// ─── Knowledge base tab ───────────────────────────────────────────────────────
+
+function KnowledgeBase({ data }: { data: PortalData }) {
+  const [selected, setSelected] = useState<PortalData['articles'][number] | null>(null)
+
+  const grouped: Record<string, PortalData['articles']> = {}
+  for (const a of data.articles) {
+    const cat = a.category ?? 'Geral'
+    if (!grouped[cat]) grouped[cat] = []
+    grouped[cat].push(a)
+  }
+
+  if (selected) {
+    return (
+      <div>
+        <button onClick={() => setSelected(null)}
+          className="mb-4 inline-flex items-center gap-1.5 text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
+          <ChevronLeft size={13} /> Voltar
+        </button>
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-5">
+          {selected.category && (
+            <p className="text-xs text-zinc-500 uppercase tracking-wider mb-2">{selected.category}</p>
+          )}
+          <h3 className="text-base font-semibold text-zinc-100 mb-1">{selected.title}</h3>
+          <p className="text-xs text-zinc-600 mb-5">Atualizado em {selected.updatedAt}</p>
+          <div className="border-t border-zinc-800 pt-4 space-y-4">
+            {selected.content.split('\n\n').map((para, i) => (
+              <p key={i} className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">{para}</p>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (data.articles.length === 0) {
+    return (
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900 p-8 text-center">
+        <BookOpen size={20} className="mx-auto mb-2 text-zinc-700" />
+        <p className="text-sm text-zinc-500">Nenhum artigo disponível no momento.</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-5">
+      {Object.entries(grouped).map(([cat, items]) => (
+        <div key={cat}>
+          <p className="text-xs font-semibold uppercase tracking-widest text-zinc-600 mb-2">{cat}</p>
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900 divide-y divide-zinc-800 overflow-hidden">
+            {items.map(a => (
+              <button key={a.id} onClick={() => setSelected(a)}
+                className="w-full text-left flex items-center justify-between gap-3 px-4 py-3 hover:bg-zinc-800/60 transition-colors">
+                <div className="flex items-center gap-3 min-w-0">
+                  <BookOpen size={14} className="text-zinc-600 flex-shrink-0" />
+                  <span className="text-sm text-zinc-200 truncate">{a.title}</span>
+                </div>
+                <span className="text-xs text-zinc-600 flex-shrink-0">{a.updatedAt}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // ─── Authenticated portal ─────────────────────────────────────────────────────
 
-type Tab = 'financeiro' | 'suporte'
+type Tab = 'financeiro' | 'suporte' | 'conhecimento'
 
 function AuthenticatedPortal({ data, token }: { data: PortalData; token: string }) {
   const [tab,        setTab]        = useState<Tab>('financeiro')
@@ -431,6 +498,22 @@ function AuthenticatedPortal({ data, token }: { data: PortalData; token: string 
             </span>
           )}
         </button>
+        <button
+          onClick={() => setTab('conhecimento')}
+          className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 transition-colors -mb-px ${
+            tab === 'conhecimento'
+              ? 'border-indigo-500 text-indigo-400'
+              : 'border-transparent text-zinc-500 hover:text-zinc-300'
+          }`}
+        >
+          <BookOpen size={14} />
+          Base de Conhecimento
+          {data.articles.length > 0 && (
+            <span className="rounded-full bg-zinc-700/50 border border-zinc-700 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-400">
+              {data.articles.length}
+            </span>
+          )}
+        </button>
       </div>
 
       {/* Content */}
@@ -456,6 +539,8 @@ function AuthenticatedPortal({ data, token }: { data: PortalData; token: string 
           />
         )
       )}
+
+      {tab === 'conhecimento' && <KnowledgeBase data={data} />}
     </div>
   )
 }
