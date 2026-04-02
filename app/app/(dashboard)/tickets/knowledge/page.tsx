@@ -1,8 +1,9 @@
 import { auth } from '@/auth'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
-import { listArticlesAction, deleteArticleAction } from '@/app/actions/knowledge'
-import { BookOpen, Plus, Pencil, Trash2, Globe, Lock, Eye, EyeOff } from 'lucide-react'
+import { listArticlesAction } from '@/app/actions/knowledge'
+import { BookOpen, Plus, Pencil, Globe, Lock } from 'lucide-react'
+import { DeleteArticleButton } from './_components/DeleteArticleButton'
 
 const VISIBILITY_CFG: Record<string, { label: string; icon: React.ReactNode; className: string }> = {
   PUBLIC:   { label: 'Público',   icon: <Globe  size={11} />, className: 'text-emerald-400 bg-emerald-900/30 border-emerald-800/40' },
@@ -20,8 +21,6 @@ export default async function KnowledgePage() {
 
   const isAdmin = session.user.role === 'SUPER_ADMIN' || session.user.role === 'ORG_ADMIN'
   const articles = await listArticlesAction()
-
-  const categories = [...new Set(articles.map(a => a.category).filter(Boolean))] as string[]
 
   const grouped: Record<string, typeof articles> = {}
   for (const a of articles) {
@@ -95,12 +94,7 @@ export default async function KnowledgePage() {
                               className="p-1.5 rounded text-zinc-600 hover:text-indigo-400 transition-colors">
                               <Pencil size={12} />
                             </Link>
-                            <form action={async () => { 'use server'; await deleteArticleAction(a.id) }}>
-                              <button type="submit" className="p-1.5 rounded text-zinc-600 hover:text-red-400 transition-colors"
-                                onClick={e => { if (!confirm('Excluir este artigo?')) e.preventDefault() }}>
-                                <Trash2 size={12} />
-                              </button>
-                            </form>
+                            <DeleteArticleButton id={a.id} />
                           </div>
                         )}
                       </div>
