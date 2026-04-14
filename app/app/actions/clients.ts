@@ -33,12 +33,12 @@ export async function createClientAction(
 
   const cnpjRaw = data.cnpj.replace(/\D/g, '')
   if (!data.name?.trim()) return { error: 'Razão Social é obrigatória.' }
-  if (cnpjRaw.length !== 14) return { error: 'CNPJ inválido. Informe 14 dígitos.' }
+  if (cnpjRaw.length !== 11 && cnpjRaw.length !== 14) return { error: 'CPF/CNPJ inválido. Informe 11 dígitos (CPF) ou 14 dígitos (CNPJ).' }
 
   const existing = await adminPrisma.client.findFirst({
     where: { organization_id: orgId, cnpj: cnpjRaw },
   })
-  if (existing) return { error: 'Este CNPJ já está cadastrado.' }
+  if (existing) return { error: 'Este CPF/CNPJ já está cadastrado.' }
 
   await adminPrisma.client.create({
     data: {

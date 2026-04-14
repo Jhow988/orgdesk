@@ -31,8 +31,11 @@ interface Props {
 
 const PAGE_SIZE = 20
 
-function formatCnpj(v: string) {
-  return v.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')
+function formatCpfCnpj(v: string) {
+  const d = v.replace(/\D/g, '')
+  if (d.length === 11) return d.replace(/^(\d{3})(\d{3})(\d{3})(\d{2})$/, '$1.$2.$3-$4')
+  if (d.length === 14) return d.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')
+  return v
 }
 
 export function ClientsTable({ clients }: Props) {
@@ -77,8 +80,16 @@ export function ClientsTable({ clients }: Props) {
   const currentPage = Math.min(page, totalPages)
   const paginated   = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
-  function maskCnpj(value: string) {
+  function maskCpfCnpj(value: string) {
     const d = value.replace(/\D/g, '').slice(0, 14)
+    if (d.length <= 11) {
+      // CPF: 000.000.000-00
+      return d
+        .replace(/^(\d{3})(\d)/, '$1.$2')
+        .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+        .replace(/\.(\d{3})(\d)/, '.$1-$2')
+    }
+    // CNPJ: 00.000.000/0000-00
     return d
       .replace(/^(\d{2})(\d)/, '$1.$2')
       .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
@@ -175,12 +186,12 @@ export function ClientsTable({ clients }: Props) {
             <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
               <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Dados Gerais</p>
               <div>
-                <label className="mb-1 block text-xs text-zinc-400">CNPJ *</label>
+                <label className="mb-1 block text-xs text-zinc-400">CPF / CNPJ *</label>
                 <input
                   type="text"
                   value={createForm.cnpj}
-                  onChange={e => setCreateForm(f => ({ ...f, cnpj: maskCnpj(e.target.value) }))}
-                  placeholder="00.000.000/0000-00"
+                  onChange={e => setCreateForm(f => ({ ...f, cnpj: maskCpfCnpj(e.target.value) }))}
+                  placeholder="000.000.000-00 ou 00.000.000/0000-00"
                   className="w-full rounded-md border border-white/[0.08] bg-white/[0.05] px-3 py-2 text-sm text-zinc-200 outline-none focus:border-indigo-500/50 font-mono"
                 />
               </div>
@@ -438,7 +449,7 @@ export function ClientsTable({ clients }: Props) {
         <table className="w-full text-sm bg-transparent">
           <thead>
             <tr className="border-b border-white/[0.08]">
-              {['Nome', 'CNPJ', 'E-mail', 'Telefone', 'Status', ''].map(h => (
+              {['Nome', 'CPF/CNPJ', 'E-mail', 'Telefone', 'Status', ''].map(h => (
                 <th key={h} className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
                   {h}
                 </th>
@@ -464,7 +475,7 @@ export function ClientsTable({ clients }: Props) {
                   )}
                 </td>
                 <td className="px-4 py-3 font-mono text-xs text-zinc-400">
-                  {formatCnpj(c.cnpj)}
+                  {formatCpfCnpj(c.cnpj)}
                 </td>
                 <td className="px-4 py-3 text-xs text-zinc-400 truncate max-w-[180px]">
                   {c.email ?? <span className="text-zinc-600">—</span>}
