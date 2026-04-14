@@ -51,6 +51,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Financeiro',
     items: [
+      { href: '/financeiro/boletos',         label: 'Boletos (Asaas)',   icon: FileCheck,     module: 'cobranca' },
       { href: '/financeiro/carteiras',       label: 'Carteiras',        icon: BarChart2,     module: 'cobranca' },
       { href: '/financeiro/contas-pagar',    label: 'Contas a Pagar',   icon: Send,          module: 'cobranca' },
       { href: '/financeiro/contas-receber',  label: 'Contas a Receber', icon: MapPin,        module: 'cobranca' },

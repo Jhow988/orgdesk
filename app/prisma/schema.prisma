@@ -553,11 +553,16 @@ model Boleto {
   barcode          String?
   pdf_key          String?
   pdf_size_kb      Float?
-  campaign_send_id String?     @unique
-  empresa_id       String?
-  notes            String?
-  created_at       DateTime    @default(now())
-  updated_at       DateTime    @updatedAt
+  campaign_send_id  String?     @unique
+  empresa_id        String?
+  asaas_id          String?     @unique
+  asaas_customer_id String?
+  asaas_barcode     String?
+  asaas_digitavel   String?
+  asaas_url         String?
+  notes             String?
+  created_at        DateTime    @default(now())
+  updated_at        DateTime    @updatedAt
 
   organization   Organization   @relation(fields: [organization_id], references: [id])
   client         Client         @relation(fields: [client_id], references: [id])
