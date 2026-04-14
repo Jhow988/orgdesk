@@ -2,8 +2,8 @@
 
 import { useState, useMemo, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, ChevronLeft, ChevronRight, Pencil, X, Upload } from 'lucide-react'
-import { updateClientAction, type ClientUpdateData } from '@/app/actions/clients'
+import { Search, ChevronLeft, ChevronRight, Pencil, X, Upload, Plus } from 'lucide-react'
+import { createClientAction, updateClientAction, type ClientUpdateData } from '@/app/actions/clients'
 import { bulkUpdateEmailsAction, type BulkEmailResult } from '@/app/actions/bulk-update-emails'
 
 interface Client {
@@ -42,6 +42,14 @@ export function ClientsTable({ clients }: Props) {
   const [page, setPage]     = useState(1)
   const [toast, setToast]   = useState<{ msg: string; ok: boolean } | null>(null)
   const [bulkResult, setBulkResult] = useState<BulkEmailResult | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [createForm, setCreateForm] = useState<ClientUpdateData & { cnpj: string }>({
+    cnpj: '', name: '', trade_name: '', email: '', email_boleto: '', phone: '',
+    address_street: '', address_number: '', address_complement: '',
+    address_district: '', address_city: '', address_state: '', address_zip: '',
+  })
+  const [createError, setCreateError] = useState<string | null>(null)
+
   const [editing, setEditing] = useState<Client | null>(null)
   const [editForm, setEditForm] = useState<ClientUpdateData>({
     name: '', trade_name: '', email: '', email_boleto: '', phone: '',
@@ -68,6 +76,35 @@ export function ClientsTable({ clients }: Props) {
   const totalPages  = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
   const paginated   = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
+
+  function maskCnpj(value: string) {
+    const d = value.replace(/\D/g, '').slice(0, 14)
+    return d
+      .replace(/^(\d{2})(\d)/, '$1.$2')
+      .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/\.(\d{3})(\d)/, '.$1/$2')
+      .replace(/(\d{4})(\d)/, '$1-$2')
+  }
+
+  function openCreate() {
+    setCreateForm({
+      cnpj: '', name: '', trade_name: '', email: '', email_boleto: '', phone: '',
+      address_street: '', address_number: '', address_complement: '',
+      address_district: '', address_city: '', address_state: '', address_zip: '',
+    })
+    setCreateError(null)
+    setCreating(true)
+  }
+
+  function handleCreate() {
+    startTransition(async () => {
+      const res = await createClientAction(createForm)
+      if (res.error) { setCreateError(res.error); return }
+      setCreating(false)
+      showToast('Cliente criado com sucesso.')
+      router.refresh()
+    })
+  }
 
   function handleBulkUpdateEmails() {
     startTransition(async () => {
@@ -119,6 +156,110 @@ export function ClientsTable({ clients }: Props) {
             : 'border-red-700 bg-red-900/80 text-red-300'
         }`}>
           {toast.msg}
+        </div>
+      )}
+
+      {/* Create Client Modal */}
+      {creating && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-xl border border-white/[0.1] bg-zinc-900 p-6 shadow-2xl">
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-zinc-100">Novo Cliente</h2>
+              <button onClick={() => setCreating(false)} className="text-zinc-500 hover:text-zinc-300">
+                <X size={16} />
+              </button>
+            </div>
+            {createError && (
+              <p className="mb-3 rounded bg-red-900/30 px-3 py-2 text-sm text-red-400">{createError}</p>
+            )}
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+              <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Dados Gerais</p>
+              <div>
+                <label className="mb-1 block text-xs text-zinc-400">CNPJ *</label>
+                <input
+                  type="text"
+                  value={createForm.cnpj}
+                  onChange={e => setCreateForm(f => ({ ...f, cnpj: maskCnpj(e.target.value) }))}
+                  placeholder="00.000.000/0000-00"
+                  className="w-full rounded-md border border-white/[0.08] bg-white/[0.05] px-3 py-2 text-sm text-zinc-200 outline-none focus:border-indigo-500/50 font-mono"
+                />
+              </div>
+              {([
+                { label: 'Razão Social *',  key: 'name' },
+                { label: 'Nome Fantasia',   key: 'trade_name' },
+                { label: 'E-mail',          key: 'email' },
+                { label: 'E-mail Cobrança', key: 'email_boleto' },
+                { label: 'Telefone',        key: 'phone' },
+              ] as { label: string; key: keyof typeof createForm }[]).map(({ label, key }) => (
+                <div key={key}>
+                  <label className="mb-1 block text-xs text-zinc-400">{label}</label>
+                  <input
+                    type="text"
+                    value={createForm[key]}
+                    onChange={e => setCreateForm(f => ({ ...f, [key]: e.target.value }))}
+                    className="w-full rounded-md border border-white/[0.08] bg-white/[0.05] px-3 py-2 text-sm text-zinc-200 outline-none focus:border-indigo-500/50"
+                  />
+                </div>
+              ))}
+              <p className="pt-1 text-xs font-medium text-zinc-500 uppercase tracking-wider">Endereço</p>
+              <div className="grid grid-cols-3 gap-2">
+                <div className="col-span-2">
+                  <label className="mb-1 block text-xs text-zinc-400">Logradouro</label>
+                  <input type="text" value={createForm.address_street}
+                    onChange={e => setCreateForm(f => ({ ...f, address_street: e.target.value }))}
+                    className="w-full rounded-md border border-white/[0.08] bg-white/[0.05] px-3 py-2 text-sm text-zinc-200 outline-none focus:border-indigo-500/50" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-zinc-400">Número</label>
+                  <input type="text" value={createForm.address_number}
+                    onChange={e => setCreateForm(f => ({ ...f, address_number: e.target.value }))}
+                    className="w-full rounded-md border border-white/[0.08] bg-white/[0.05] px-3 py-2 text-sm text-zinc-200 outline-none focus:border-indigo-500/50" />
+                </div>
+              </div>
+              {([
+                { label: 'Complemento', key: 'address_complement' },
+                { label: 'Bairro',      key: 'address_district' },
+                { label: 'Cidade',      key: 'address_city' },
+              ] as { label: string; key: keyof typeof createForm }[]).map(({ label, key }) => (
+                <div key={key}>
+                  <label className="mb-1 block text-xs text-zinc-400">{label}</label>
+                  <input type="text" value={createForm[key]}
+                    onChange={e => setCreateForm(f => ({ ...f, [key]: e.target.value }))}
+                    className="w-full rounded-md border border-white/[0.08] bg-white/[0.05] px-3 py-2 text-sm text-zinc-200 outline-none focus:border-indigo-500/50" />
+                </div>
+              ))}
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="mb-1 block text-xs text-zinc-400">UF</label>
+                  <input type="text" maxLength={2} value={createForm.address_state}
+                    onChange={e => setCreateForm(f => ({ ...f, address_state: e.target.value.toUpperCase() }))}
+                    className="w-full rounded-md border border-white/[0.08] bg-white/[0.05] px-3 py-2 text-sm text-zinc-200 outline-none focus:border-indigo-500/50" />
+                </div>
+                <div>
+                  <label className="mb-1 block text-xs text-zinc-400">CEP</label>
+                  <input type="text" value={createForm.address_zip}
+                    onChange={e => setCreateForm(f => ({ ...f, address_zip: e.target.value }))}
+                    className="w-full rounded-md border border-white/[0.08] bg-white/[0.05] px-3 py-2 text-sm text-zinc-200 outline-none focus:border-indigo-500/50" />
+                </div>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                onClick={() => setCreating(false)}
+                className="rounded-md border border-white/[0.08] px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleCreate}
+                disabled={isPending}
+                className="flex items-center gap-1.5 rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50 transition-colors"
+              >
+                <Plus size={14} />
+                {isPending ? 'Criando…' : 'Criar Cliente'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -268,6 +409,14 @@ export function ClientsTable({ clients }: Props) {
           >
             <Upload size={12} />
             Atualizar Emails CSV
+          </button>
+          <button
+            onClick={openCreate}
+            disabled={isPending}
+            className="flex items-center gap-1.5 rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50 transition-colors"
+          >
+            <Plus size={14} />
+            Novo Cliente
           </button>
         </div>
       </div>
