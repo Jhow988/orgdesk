@@ -1,9 +1,9 @@
 'use client'
 
-import { useState, useMemo, useTransition, useEffect } from 'react'
+import { useState, useMemo, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { Search, RefreshCw, ChevronLeft, ChevronRight, Link2, Link2Off, Pencil, X, Upload } from 'lucide-react'
-import { syncBlingAction, getBlingConnectUrlAction, disconnectBlingAction, updateClientAction, type ClientUpdateData } from '@/app/actions/bling'
+import { Search, ChevronLeft, ChevronRight, Pencil, X, Upload } from 'lucide-react'
+import { updateClientAction, type ClientUpdateData } from '@/app/actions/clients'
 import { bulkUpdateEmailsAction, type BulkEmailResult } from '@/app/actions/bulk-update-emails'
 
 interface Client {
@@ -15,7 +15,6 @@ interface Client {
   email_boleto:       string | null
   phone:              string | null
   is_active:          boolean
-  bling_id:           string | null
   created_at:         string
   address_street:     string | null
   address_number:     string | null
@@ -27,11 +26,7 @@ interface Client {
 }
 
 interface Props {
-  clients:        Client[]
-  blingConnected: boolean
-  lastSyncAt:     string | null
-  flashConnected: boolean
-  flashError?:    string
+  clients: Client[]
 }
 
 const PAGE_SIZE = 20
@@ -40,7 +35,7 @@ function formatCnpj(v: string) {
   return v.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, '$1.$2.$3/$4-$5')
 }
 
-export function ClientsTable({ clients, blingConnected, lastSyncAt, flashConnected, flashError }: Props) {
+export function ClientsTable({ clients }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [search, setSearch] = useState('')
@@ -53,13 +48,6 @@ export function ClientsTable({ clients, blingConnected, lastSyncAt, flashConnect
     address_street: '', address_number: '', address_complement: '',
     address_district: '', address_city: '', address_state: '', address_zip: '',
   })
-
-  // Show flash messages from OAuth redirect
-  useEffect(() => {
-    if (flashConnected) showToast('Bling conectado com sucesso!')
-    else if (flashError)  showToast(`Erro ao conectar Bling: ${flashError}`, false)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   function showToast(msg: string, ok = true) {
     setToast({ msg, ok })
@@ -80,34 +68,6 @@ export function ClientsTable({ clients, blingConnected, lastSyncAt, flashConnect
   const totalPages  = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
   const paginated   = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
-
-  function handleSync() {
-    startTransition(async () => {
-      const res = await syncBlingAction()
-      if (res.error) {
-        showToast(res.error, false)
-      } else {
-        showToast(`${res.upserted} cliente(s) sincronizados, ${res.skipped} ignorados.`)
-        router.refresh()
-      }
-    })
-  }
-
-  function handleConnect() {
-    startTransition(async () => {
-      const res = await getBlingConnectUrlAction()
-      if (res.url) window.location.href = res.url
-      else showToast(res.error ?? 'Erro ao conectar.', false)
-    })
-  }
-
-  function handleDisconnect() {
-    startTransition(async () => {
-      await disconnectBlingAction()
-      showToast('Bling desconectado.')
-      router.refresh()
-    })
-  }
 
   function handleBulkUpdateEmails() {
     startTransition(async () => {
@@ -144,14 +104,11 @@ export function ClientsTable({ clients, blingConnected, lastSyncAt, flashConnect
         showToast(res.error, false)
       } else {
         setEditing(null)
-        if (res.blingWarning) showToast(`Salvo localmente. Bling: ${res.blingWarning}`, false)
-        else showToast('Cliente atualizado.')
+        showToast('Cliente atualizado.')
         router.refresh()
       }
     })
   }
-
-  const syncedCount = clients.filter(c => c.bling_id).length
 
   return (
     <>
@@ -193,9 +150,6 @@ export function ClientsTable({ clients, blingConnected, lastSyncAt, flashConnect
                   <p key={i} className="text-xs text-zinc-400 py-0.5">{l}</p>
                 ))}
               </div>
-            )}
-            {bulkResult.blingErrors > 0 && (
-              <p className="mt-3 text-xs text-amber-400">{bulkResult.blingErrors} erro(s) ao sincronizar com Bling.</p>
             )}
             <div className="mt-4 flex justify-end">
               <button onClick={() => setBulkResult(null)} className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-500">
@@ -277,9 +231,6 @@ export function ClientsTable({ clients, blingConnected, lastSyncAt, flashConnect
                 </div>
               </div>
             </div>
-            {editing.bling_id && (
-              <p className="mt-3 text-xs text-indigo-400">Este cliente será atualizado no Bling também.</p>
-            )}
             <div className="mt-5 flex justify-end gap-2">
               <button
                 onClick={() => setEditing(null)}
@@ -305,9 +256,6 @@ export function ClientsTable({ clients, blingConnected, lastSyncAt, flashConnect
           <h1 className="text-xl font-semibold text-zinc-100">Clientes</h1>
           <p className="mt-1 text-sm text-zinc-500">
             {clients.length} cliente{clients.length !== 1 ? 's' : ''}
-            {syncedCount > 0 && (
-              <span className="ml-2 text-xs text-indigo-400">· {syncedCount} do Bling</span>
-            )}
           </p>
         </div>
 
@@ -321,41 +269,6 @@ export function ClientsTable({ clients, blingConnected, lastSyncAt, flashConnect
             <Upload size={12} />
             Atualizar Emails CSV
           </button>
-
-          {blingConnected ? (
-            <>
-              {lastSyncAt && (
-                <span className="text-xs text-zinc-500">
-                  Sync: {new Date(lastSyncAt).toLocaleString('pt-BR')}
-                </span>
-              )}
-              <button
-                onClick={handleSync}
-                disabled={isPending}
-                className="flex items-center gap-1.5 rounded-md border border-indigo-500/40 bg-indigo-500/10 px-3 py-1.5 text-sm text-indigo-300 hover:bg-indigo-500/20 disabled:opacity-50 transition-colors"
-              >
-                <RefreshCw size={13} className={isPending ? 'animate-spin' : ''} />
-                Sincronizar Bling
-              </button>
-              <button
-                onClick={handleDisconnect}
-                disabled={isPending}
-                className="flex items-center gap-1.5 rounded-md border border-white/[0.08] bg-white/[0.04] px-3 py-1.5 text-xs text-zinc-500 hover:text-red-400 hover:border-red-500/30 disabled:opacity-50 transition-colors"
-              >
-                <Link2Off size={12} />
-                Desconectar
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={handleConnect}
-              disabled={isPending}
-              className="flex items-center gap-1.5 rounded-md border border-indigo-500/40 bg-indigo-500/10 px-3 py-1.5 text-sm text-indigo-300 hover:bg-indigo-500/20 disabled:opacity-50 transition-colors"
-            >
-              <Link2 size={13} />
-              Conectar Bling
-            </button>
-          )}
         </div>
       </div>
 
@@ -376,7 +289,7 @@ export function ClientsTable({ clients, blingConnected, lastSyncAt, flashConnect
         <table className="w-full text-sm bg-transparent">
           <thead>
             <tr className="border-b border-white/[0.08]">
-              {['Nome', 'CNPJ', 'E-mail', 'Telefone', 'Status', 'Bling', ''].map(h => (
+              {['Nome', 'CNPJ', 'E-mail', 'Telefone', 'Status', ''].map(h => (
                 <th key={h} className="px-4 py-3 text-left text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
                   {h}
                 </th>
@@ -387,16 +300,7 @@ export function ClientsTable({ clients, blingConnected, lastSyncAt, flashConnect
             {paginated.length === 0 ? (
               <tr>
                 <td colSpan={6} className="px-4 py-12 text-center text-zinc-500">
-                  {search ? 'Nenhum cliente encontrado.' : (
-                    <div>
-                      <p>Nenhum cliente cadastrado.</p>
-                      {!blingConnected && (
-                        <p className="mt-1 text-xs text-zinc-600">
-                          Conecte o Bling para importar seus clientes automaticamente.
-                        </p>
-                      )}
-                    </div>
-                  )}
+                  {search ? 'Nenhum cliente encontrado.' : 'Nenhum cliente cadastrado.'}
                 </td>
               </tr>
             ) : paginated.map(c => (
@@ -427,12 +331,6 @@ export function ClientsTable({ clients, blingConnected, lastSyncAt, flashConnect
                   }`}>
                     {c.is_active ? 'Ativo' : 'Inativo'}
                   </span>
-                </td>
-                <td className="px-4 py-3">
-                  {c.bling_id
-                    ? <span className="rounded-full px-2 py-0.5 text-xs font-medium bg-indigo-900/50 text-indigo-400">Sincronizado</span>
-                    : <span className="text-xs text-zinc-600">—</span>
-                  }
                 </td>
                 <td className="px-4 py-3 text-right">
                   <button

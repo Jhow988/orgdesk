@@ -23,42 +23,69 @@ export async function fetchAllClientsAction() {
 
 // ─── List ──────────────────────────────────────────────────────────────────────
 
-export async function listTicketsAction(filters?: {
+const TICKETS_PER_PAGE = 25
+
+export async function listTicketsAction(params?: {
+  page?:     number
   status?:   string
   priority?: string
+  search?:   string
 }) {
   const { orgId } = await requireOrg()
 
+  const page  = Math.max(1, params?.page ?? 1)
+  const skip  = (page - 1) * TICKETS_PER_PAGE
+
   const where: Record<string, unknown> = { organization_id: orgId }
-  if (filters?.status)   where.status   = filters.status
-  if (filters?.priority) where.priority = filters.priority
+  if (params?.status   && params.status   !== 'all') where.status   = params.status
+  if (params?.priority && params.priority !== 'all') where.priority = params.priority
+  if (params?.search) {
+    const q   = params.search.trim()
+    const num = parseInt(q)
+    const or: object[] = [
+      { title:  { contains: q, mode: 'insensitive' } },
+      { client: { name: { contains: q, mode: 'insensitive' } } },
+    ]
+    if (!isNaN(num)) or.push({ number: num })
+    where.OR = or
+  }
 
-  const tickets = await prisma.ticket.findMany({
-    where:   where as any,
-    orderBy: { created_at: 'desc' },
-    include: {
-      client:   { select: { id: true, name: true, cnpj: true } },
-      assignee: { select: { id: true, name: true } },
-      messages: { select: { id: true }, where: { is_internal: false } },
-    },
-  })
+  const [tickets, total] = await Promise.all([
+    prisma.ticket.findMany({
+      where:   where as any,
+      orderBy: { created_at: 'desc' },
+      take:    TICKETS_PER_PAGE,
+      skip,
+      include: {
+        client:   { select: { id: true, name: true, cnpj: true } },
+        assignee: { select: { id: true, name: true } },
+        messages: { select: { id: true }, where: { is_internal: false } },
+      },
+    }),
+    prisma.ticket.count({ where: where as any }),
+  ])
 
-  return tickets.map(t => ({
-    id:           t.id,
-    number:       t.number,
-    title:        t.title,
-    status:       t.status as string,
-    priority:     t.priority as string,
-    category:     t.category,
-    clientName:   t.client.name,
-    clientCnpj:   t.client.cnpj,
-    clientId:     t.client.id,
-    assigneeName: t.assignee?.name ?? null,
-    messageCount: t.messages.length,
-    createdAt:    t.created_at.toISOString(),
-    updatedAt:    t.updated_at.toISOString(),
-    resolvedAt:   t.resolved_at?.toISOString() ?? null,
-  }))
+  return {
+    tickets: tickets.map(t => ({
+      id:           t.id,
+      number:       t.number,
+      title:        t.title,
+      status:       t.status as string,
+      priority:     t.priority as string,
+      category:     t.category,
+      clientName:   t.client.name,
+      clientCnpj:   t.client.cnpj,
+      clientId:     t.client.id,
+      assigneeName: t.assignee?.name ?? null,
+      messageCount: t.messages.length,
+      createdAt:    t.created_at.toISOString(),
+      updatedAt:    t.updated_at.toISOString(),
+      resolvedAt:   t.resolved_at?.toISOString() ?? null,
+    })),
+    total,
+    page,
+    pages: Math.max(1, Math.ceil(total / TICKETS_PER_PAGE)),
+  }
 }
 
 // ─── Stats ─────────────────────────────────────────────────────────────────────
@@ -66,15 +93,23 @@ export async function listTicketsAction(filters?: {
 export async function getTicketStatsAction() {
   const { orgId } = await requireOrg()
 
-  const [total, open, inProgress, waitingClient, resolved] = await Promise.all([
-    prisma.ticket.count({ where: { organization_id: orgId } }),
-    prisma.ticket.count({ where: { organization_id: orgId, status: 'OPEN' } }),
-    prisma.ticket.count({ where: { organization_id: orgId, status: 'IN_PROGRESS' } }),
-    prisma.ticket.count({ where: { organization_id: orgId, status: 'WAITING_CLIENT' } }),
-    prisma.ticket.count({ where: { organization_id: orgId, status: 'RESOLVED' } }),
-  ])
+  // Uma única query GROUP BY no lugar de 5 COUNTs separados
+  const rows = await prisma.$queryRaw<{ status: string; count: bigint }[]>`
+    SELECT status, COUNT(*) AS count
+    FROM tickets
+    WHERE organization_id = ${orgId}
+    GROUP BY status
+  `
 
-  return { total, open, inProgress, waitingClient, resolved }
+  const byStatus = Object.fromEntries(rows.map(r => [r.status, Number(r.count)]))
+
+  return {
+    total:        rows.reduce((sum, r) => sum + Number(r.count), 0),
+    open:         byStatus['OPEN']           ?? 0,
+    inProgress:   byStatus['IN_PROGRESS']    ?? 0,
+    waitingClient: byStatus['WAITING_CLIENT'] ?? 0,
+    resolved:     byStatus['RESOLVED']       ?? 0,
+  }
 }
 
 // ─── Detail ────────────────────────────────────────────────────────────────────
@@ -158,31 +193,36 @@ export async function createTicketAction(data: {
 }) {
   const { orgId, userId } = await requireOrg()
 
-  const last = await prisma.ticket.findFirst({
-    where:   { organization_id: orgId },
-    orderBy: { number: 'desc' },
-    select:  { number: true },
-  })
-  const number = (last?.number ?? 0) + 1
+  // Usa transação com lock na org para evitar race condition no número do ticket
+  const ticket = await prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM organizations WHERE id = ${orgId} FOR UPDATE`
 
-  const ticket = await prisma.ticket.create({
-    data: {
-      organization_id: orgId,
-      number,
-      client_id:       data.clientId,
-      opened_by:       userId,
-      opened_by_type:  'user',
-      title:           data.title,
-      priority:        data.priority as any,
-      category:        data.category || null,
-      messages: {
-        create: {
-          author_id:   userId,
-          author_type: 'user',
-          body:        data.body,
+    const last = await tx.ticket.findFirst({
+      where:   { organization_id: orgId },
+      orderBy: { number: 'desc' },
+      select:  { number: true },
+    })
+    const number = (last?.number ?? 0) + 1
+
+    return tx.ticket.create({
+      data: {
+        organization_id: orgId,
+        number,
+        client_id:       data.clientId,
+        opened_by:       userId,
+        opened_by_type:  'user',
+        title:           data.title,
+        priority:        data.priority as any,
+        category:        data.category || null,
+        messages: {
+          create: {
+            author_id:   userId,
+            author_type: 'user',
+            body:        data.body,
+          },
         },
       },
-    },
+    })
   })
 
   revalidatePath('/tickets')

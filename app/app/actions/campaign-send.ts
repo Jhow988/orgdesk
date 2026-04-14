@@ -5,25 +5,13 @@ import { adminPrisma as prisma } from '@/lib/prisma'
 import { revalidatePath } from 'next/cache'
 import crypto from 'crypto'
 import { checkModuleAccess } from './permissions'
+import { sendEmail as mailerSendEmail, resolveFromAddress } from '@/lib/mailer'
+import type { Organization } from '@prisma/client'
 
-// ─── PDF helpers (lazy to avoid bundling issues) ─────────────────────────────
+// ─── PDF helpers ─────────────────────────────────────────────────────────────
 
-async function fetchPdfBuffer(key: string): Promise<Buffer> {
-  const { S3Client, GetObjectCommand } = await import('@aws-sdk/client-s3')
-  const s3 = new S3Client({
-    endpoint: `http${process.env.MINIO_USE_SSL === 'true' ? 's' : ''}://${process.env.MINIO_ENDPOINT}:${process.env.MINIO_PORT}`,
-    region: 'us-east-1',
-    credentials: {
-      accessKeyId: process.env.MINIO_ACCESS_KEY!,
-      secretAccessKey: process.env.MINIO_SECRET_KEY!,
-    },
-    forcePathStyle: true,
-  })
-  const res = await s3.send(new GetObjectCommand({ Bucket: process.env.MINIO_BUCKET!, Key: key }))
-  const chunks: Uint8Array[] = []
-  for await (const chunk of res.Body as any) chunks.push(chunk)
-  return Buffer.concat(chunks)
-}
+// Usa o singleton S3Client de lib/storage ao invés de criar uma nova instância
+import { fetchFile as fetchPdfBuffer } from '@/lib/storage'
 
 async function extractPages(pdfBuffer: Buffer, pages: number[]): Promise<Buffer> {
   const { PDFDocument } = await import('pdf-lib')
@@ -89,6 +77,7 @@ function buildEmailHtmlFromTemplate(
 }
 
 async function sendEmail(opts: {
+  org:             Organization
   to:              string[]
   nome:            string
   mesAno:          string
@@ -101,51 +90,29 @@ async function sendEmail(opts: {
   boletoFilename?: string
   pixelId:         string
 }) {
-  const nodemailer = require('nodemailer')
-  const transporter = nodemailer.createTransport({
-    host:   process.env.SMTP_HOST!,
-    port:   parseInt(process.env.SMTP_PORT ?? '465'),
-    secure: (process.env.SMTP_PORT ?? '465') === '465',
-    auth: { user: process.env.SMTP_USER!, pass: process.env.SMTP_PASS! },
-  })
-
   const baseUrl  = process.env.NEXTAUTH_URL ?? 'https://orgdesk.com.br'
   const pixelUrl = `${baseUrl}/api/track/${opts.pixelId}`
 
-  // Replace variables in subject and body
+  const vars = { nome_cliente: opts.nome, mes_ano: opts.mesAno, link_portal: opts.portalUrl }
+
   const subject = opts.templateSubject
-    .replace(/\{nome_cliente\}/g, opts.nome)
-    .replace(/\{mes_ano\}/g,      opts.mesAno)
-    .replace(/\{link_portal\}/g,  opts.portalUrl)
+    .replace(/\{nome_cliente\}/g, vars.nome_cliente)
+    .replace(/\{mes_ano\}/g,      vars.mes_ano)
+    .replace(/\{link_portal\}/g,  vars.link_portal)
 
-  const html = buildEmailHtmlFromTemplate(
-    opts.templateBody,
-    { nome_cliente: opts.nome, mes_ano: opts.mesAno, link_portal: opts.portalUrl },
-    pixelUrl,
-  )
+  const html = buildEmailHtmlFromTemplate(opts.templateBody, vars, pixelUrl)
 
-  // Plain-text fallback
   const text = opts.templateBody
-    .replace(/\{nome_cliente\}/g, opts.nome)
-    .replace(/\{mes_ano\}/g,      opts.mesAno)
-    .replace(/\{link_portal\}/g,  opts.portalUrl)
+    .replace(/\{nome_cliente\}/g, vars.nome_cliente)
+    .replace(/\{mes_ano\}/g,      vars.mes_ano)
+    .replace(/\{link_portal\}/g,  vars.link_portal)
 
-  const attachments: any[] = []
-  if (opts.nfBuffer) {
-    attachments.push({ filename: opts.nfFilename, content: opts.nfBuffer, contentType: 'application/pdf' })
-  }
-  if (opts.boletoBuffer) {
-    attachments.push({ filename: opts.boletoFilename, content: opts.boletoBuffer, contentType: 'application/pdf' })
-  }
+  const attachments: { filename: string; content: Buffer; contentType: string }[] = []
+  if (opts.nfBuffer     && opts.nfFilename)     attachments.push({ filename: opts.nfFilename,     content: opts.nfBuffer,     contentType: 'application/pdf' })
+  if (opts.boletoBuffer && opts.boletoFilename) attachments.push({ filename: opts.boletoFilename, content: opts.boletoBuffer, contentType: 'application/pdf' })
 
-  await transporter.sendMail({
-    from: `"Syall Soluções - Financeiro" <${process.env.SMTP_USER}>`,
-    to:   opts.to.join(', '),
-    subject,
-    text,
-    html,
-    attachments,
-  })
+  // Usa SMTP da org (com fallback para env vars via lib/mailer)
+  await mailerSendEmail(opts.org, { to: opts.to, subject, html, text, attachments })
 }
 
 // ─── Main action ──────────────────────────────────────────────────────────────
@@ -177,28 +144,30 @@ export async function enviarSendsAction(
 
   if (!sends.length) return { ok: false, error: 'Nenhum registro pendente encontrado.' }
 
-  // Fetch email template (from DB or use default)
-  let templateSubject = DEFAULT_SUBJECT
-  let templateBody    = DEFAULT_BODY
-  if (templateId) {
-    const tpl = await prisma.emailTemplate.findFirst({
-      where: { id: templateId, organization_id: session.user.orgId },
-    })
-    if (tpl) { templateSubject = tpl.subject; templateBody = tpl.body }
-  }
-
-  // Pre-fetch portal tokens for all clients in this batch
+  // Busca org (SMTP config) + template + portal tokens em paralelo
   const cnpjs = [...new Set(sends.map(s => s.client_cnpj))]
-  const baseUrl = process.env.NEXTAUTH_URL ?? 'https://orgdesk.com.br'
   type TokenRow = { cnpj: string; portal_token: string | null }
-  const tokenRows = cnpjs.length > 0
-    ? await prisma.$queryRaw<TokenRow[]>`
-        SELECT cnpj, portal_token FROM clients
-        WHERE organization_id = ${session.user.orgId}
-          AND cnpj = ANY(${cnpjs}::text[])
-      `
-    : []
-  const portalTokenMap = new Map(tokenRows.map(r => [r.cnpj, r.portal_token]))
+
+  const [org, templateRow, tokenRows] = await Promise.all([
+    prisma.organization.findUnique({ where: { id: session.user.orgId } }),
+    templateId
+      ? prisma.emailTemplate.findFirst({ where: { id: templateId, organization_id: session.user.orgId } })
+      : Promise.resolve(null),
+    cnpjs.length > 0
+      ? prisma.$queryRaw<TokenRow[]>`
+          SELECT cnpj, portal_token FROM clients
+          WHERE organization_id = ${session.user.orgId}
+            AND cnpj = ANY(${cnpjs}::text[])
+        `
+      : Promise.resolve([]),
+  ])
+
+  if (!org) return { ok: false, error: 'Organização não encontrada.' }
+
+  const templateSubject = templateRow?.subject ?? DEFAULT_SUBJECT
+  const templateBody    = templateRow?.body    ?? DEFAULT_BODY
+  const baseUrl = process.env.NEXTAUTH_URL ?? 'https://orgdesk.com.br'
+  const portalTokenMap = new Map((tokenRows as TokenRow[]).map(r => [r.cnpj, r.portal_token]))
 
   // Group sends by campaign to fetch PDFs once per campaign (skip when no attachments)
   const campaignBuffers = new Map<string, { nf: Buffer; boleto?: Buffer }>()
@@ -255,6 +224,7 @@ export async function enviarSendsAction(
       const portalUrl = token ? `${baseUrl}/c/${token}` : baseUrl
 
       await sendEmail({
+        org,
         to:              send.emails,
         nome:            send.client_name,
         mesAno,

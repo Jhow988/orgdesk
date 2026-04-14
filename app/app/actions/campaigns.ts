@@ -4,7 +4,7 @@ import { auth } from '@/auth'
 import { adminPrisma as prisma } from '@/lib/prisma'
 import { checkModuleAccess } from './permissions'
 import { logActivity } from '@/lib/activity'
-import { uploadFile, deleteFile, buildKey } from '@/lib/storage'
+import { uploadFile, deleteFile, buildKey, fetchFile } from '@/lib/storage'
 import { extrairCnpjDaPagina, extrairCnpjBoleto } from '@/lib/pdf-extractor'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
@@ -114,27 +114,8 @@ export async function createCampaignAction(prev: CampaignState, formData: FormDa
 
 // ─── shared: fetch S3 + parse PDFs ──────────────────────────────────────────
 
-async function buildS3Client() {
-  const { S3Client } = await import('@aws-sdk/client-s3')
-  return new S3Client({
-    endpoint: `http${process.env.MINIO_USE_SSL === 'true' ? 's' : ''}://${process.env.MINIO_ENDPOINT}:${process.env.MINIO_PORT}`,
-    region: 'us-east-1',
-    credentials: {
-      accessKeyId:     process.env.MINIO_ACCESS_KEY!,
-      secretAccessKey: process.env.MINIO_SECRET_KEY!,
-    },
-    forcePathStyle: true,
-  })
-}
-
-async function fetchBuffer(key: string): Promise<Buffer> {
-  const { GetObjectCommand } = await import('@aws-sdk/client-s3')
-  const s3 = await buildS3Client()
-  const res = await s3.send(new GetObjectCommand({ Bucket: process.env.MINIO_BUCKET!, Key: key }))
-  const chunks: Uint8Array[] = []
-  for await (const chunk of res.Body as any) chunks.push(chunk)
-  return Buffer.concat(chunks)
-}
+// Usa o singleton S3Client de lib/storage (fetchFile)
+const fetchBuffer = fetchFile
 
 interface CampaignMatch {
   cnpj:        string
@@ -150,17 +131,15 @@ async function buildMatches(campaignId: string, orgId: string): Promise<{
   cnpjsIgnore: string[]
   error?: string
 }> {
+  // Uma query: campanha + cnpjs_ignore da org em um único join
   const campaign = await prisma.campaign.findFirst({
-    where: { id: campaignId, organization_id: orgId },
+    where:   { id: campaignId, organization_id: orgId },
+    include: { organization: { select: { cnpjs_ignore: true } } },
   })
-  if (!campaign) return { cnpjsIgnore: [], error: 'Campanha não encontrada.' }
+  if (!campaign)           return { cnpjsIgnore: [], error: 'Campanha não encontrada.' }
   if (!campaign.pdf_nf_key) return { cnpjsIgnore: [], error: 'PDF de NFs não encontrado.' }
 
-  const org = await prisma.organization.findUnique({
-    where: { id: orgId },
-    select: { cnpjs_ignore: true },
-  })
-  const cnpjsIgnore = org?.cnpjs_ignore ?? []
+  const cnpjsIgnore = campaign.organization.cnpjs_ignore ?? []
 
   // NF PDF
   let nfBuffer: Buffer
@@ -255,143 +234,27 @@ export async function activateCampaignAction(campaignId: string): Promise<{ erro
   const session = await auth()
   if (!session?.user?.orgId) return { error: 'Não autenticado.' }
 
-  const campaign = await prisma.campaign.findFirst({
-    where: { id: campaignId, organization_id: session.user.orgId },
-  })
-  if (!campaign) return { error: 'Campanha não encontrada.' }
-  if (!campaign.pdf_nf_key) return { error: 'PDF de NFs não encontrado.' }
+  // Reutiliza buildMatches — toda lógica de extração de PDF/CNPJ fica em um só lugar
+  const { matches, error } = await buildMatches(campaignId, session.user.orgId)
+  if (error)    return { error }
+  if (!matches) return { error: 'Nenhum match encontrado.' }
 
-  const org = await prisma.organization.findUnique({
-    where: { id: session.user.orgId },
-    select: { cnpjs_ignore: true },
-  })
-  const cnpjsIgnore = org?.cnpjs_ignore ?? []
+  // Converte matches → sends
+  const sends = matches.map(m => ({
+    campaign_id:  campaignId,
+    client_cnpj:  m.cnpj,
+    client_name:  m.clientName,
+    emails:       m.email ? [m.email] : [],
+    nf_pages:     m.nfPages,
+    boleto_pages: m.boletoPages,
+    status:       m.email ? 'PENDING' : 'NO_EMAIL',
+  }))
 
-  // Fetch NF PDF from MinIO via presigned URL (or use stored buffer)
-  // We'll read directly from S3
-  const { S3Client, GetObjectCommand } = await import('@aws-sdk/client-s3')
-  const s3 = new S3Client({
-    endpoint: `http${process.env.MINIO_USE_SSL === 'true' ? 's' : ''}://${process.env.MINIO_ENDPOINT}:${process.env.MINIO_PORT}`,
-    region: 'us-east-1',
-    credentials: {
-      accessKeyId: process.env.MINIO_ACCESS_KEY!,
-      secretAccessKey: process.env.MINIO_SECRET_KEY!,
-    },
-    forcePathStyle: true,
-  })
-
-  async function fetchBuffer(key: string): Promise<Buffer> {
-    const cmd = new GetObjectCommand({ Bucket: process.env.MINIO_BUCKET!, Key: key })
-    const res = await s3.send(cmd)
-    const chunks: Uint8Array[] = []
-    for await (const chunk of res.Body as any) chunks.push(chunk)
-    return Buffer.concat(chunks)
-  }
-
-  let nfBuffer: Buffer
-  try {
-    nfBuffer = await fetchBuffer(campaign.pdf_nf_key)
-  } catch (e: any) {
-    return { error: `Erro ao buscar PDF de NFs no storage: ${e?.message ?? e}` }
-  }
-  let nfPages: string[]
-  try {
-    nfPages = await parsePdfPages(nfBuffer)
-  } catch (e: any) {
-    return { error: `Erro ao processar PDF de NFs: ${e?.message ?? e}` }
-  }
-
-  // Map CNPJ → pages
-  const cnpjPages: Map<string, number[]> = new Map()
-  nfPages.forEach((pageText, idx) => {
-    const cnpj = extrairCnpjDaPagina(pageText, idx + 1)
-    if (cnpj && !cnpjsIgnore.includes(cnpj)) {
-      const existing = cnpjPages.get(cnpj) ?? []
-      cnpjPages.set(cnpj, [...existing, idx + 1])
-    }
-  })
-
-  // Boleto: CNPJ → page index
-  const bolCnpjPage: Map<string, number> = new Map()
-  let bolPagesTexts: string[] = []
-  if (campaign.pdf_boleto_key) {
-    const bolBuffer = await fetchBuffer(campaign.pdf_boleto_key)
-    bolPagesTexts   = await parsePdfPages(bolBuffer)
-    bolPagesTexts.forEach((text, idx) => {
-      const cnpj = extrairCnpjBoleto(text, cnpjsIgnore)
-      if (cnpj && !bolCnpjPage.has(cnpj)) bolCnpjPage.set(cnpj, idx + 1)
-    })
-  }
-
-  // Secondary pass: direct text search for NF CNPJs missed by the extractor
-  if (bolPagesTexts.length > 0) {
-    for (const cnpj of cnpjPages.keys()) {
-      if (bolCnpjPage.has(cnpj)) continue
-      bolPagesTexts.forEach((text, idx) => {
-        if (!bolCnpjPage.has(cnpj) && cnpjRegex(cnpj).test(text)) {
-          bolCnpjPage.set(cnpj, idx + 1)
-        }
-      })
-    }
-  }
-
-  // Load all clients for this org
-  const clients = await prisma.client.findMany({
-    where: { organization_id: session.user.orgId },
-    select: { id: true, cnpj: true, name: true, email: true, email_nfe: true, email_boleto: true },
-  })
-  const clientByCnpj = new Map(clients.map(c => [c.cnpj.replace(/\D/g, ''), c]))
-
-  // Delete existing sends for this campaign
   await prisma.campaignSend.deleteMany({ where: { campaign_id: campaignId } })
-
-  // Create sends
-  const sends: any[] = []
-  for (const [cnpj, pages] of cnpjPages.entries()) {
-    const client = clientByCnpj.get(cnpj)
-    const emails: string[] = []
-    if (client) {
-      if (client.email_nfe) emails.push(client.email_nfe)
-      else if (client.email) emails.push(client.email)
-    }
-    const boletoPgs = bolCnpjPage.has(cnpj) ? [bolCnpjPage.get(cnpj)!] : []
-
-    sends.push({
-      campaign_id:  campaignId,
-      client_cnpj:  cnpj,
-      client_name:  client?.name ?? cnpj,
-      emails,
-      nf_pages:     pages,          // 1-indexed page numbers
-      boleto_pages: boletoPgs,
-      status: emails.length > 0 ? 'PENDING' : 'NO_EMAIL',
-    })
-  }
-
-  // Also add CNPJs found only in boleto (not in NF)
-  for (const [cnpj] of bolCnpjPage.entries()) {
-    if (!cnpjPages.has(cnpj)) {
-      const client = clientByCnpj.get(cnpj)
-      const emails: string[] = []
-      if (client?.email_boleto) emails.push(client.email_boleto)
-      else if (client?.email) emails.push(client.email)
-
-      sends.push({
-        campaign_id:  campaignId,
-        client_cnpj:  cnpj,
-        client_name:  client?.name ?? cnpj,
-        emails,
-        nf_pages:     [],
-        boleto_pages: [bolCnpjPage.get(cnpj)!],
-        status: emails.length > 0 ? 'PENDING' : 'NO_EMAIL',
-      })
-    }
-  }
-
-  await prisma.campaignSend.createMany({ data: sends })
-
+  await prisma.campaignSend.createMany({ data: sends as any })
   await prisma.campaign.update({
     where: { id: campaignId },
-    data: { status: 'ACTIVE', started_at: new Date() },
+    data:  { status: 'ACTIVE', started_at: new Date() },
   })
 
   await logActivity({ orgId: session.user.orgId, userId: session.user.id, action: 'campaign.activated', entity: 'campaign', entityId: campaignId })

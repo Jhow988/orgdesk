@@ -10,7 +10,7 @@ export default async function EnviarCobrancaPage() {
 
   const orgId = session.user.orgId
 
-  const [campaigns, clients, templates, openReceivables] = await Promise.all([
+  const [campaigns, clients, templates] = await Promise.all([
     prisma.campaign.findMany({
       where:    { organization_id: orgId },
       orderBy:  { created_at: 'desc' },
@@ -29,26 +29,10 @@ export default async function EnviarCobrancaPage() {
       select: { cnpj: true, name: true, email: true, email_nfe: true, email_boleto: true },
     }),
     listEmailTemplatesAction(),
-    // CNPJs com boleto em aberto no Bling (status=1), agrupado por mês de vencimento
-    prisma.accountReceivable.findMany({
-      where:  { organization_id: orgId, status: 1, client_cnpj: { not: null } },
-      select: { client_cnpj: true, due_date: true },
-    }),
   ])
 
   // Map CNPJ (digits only) → client record for fast lookup
   const clientMap = new Map(clients.map(c => [c.cnpj.replace(/\D/g, ''), c]))
-
-  // Map month_year ("YYYY-MM") → Set<cnpj digits> de recebíveis em aberto no Bling
-  // Agrupa pelo mês de vencimento para cruzar com a campanha selecionada
-  const openBoletosByMonth: Record<string, string[]> = {}
-  for (const r of openReceivables) {
-    const cnpj = r.client_cnpj!.replace(/\D/g, '')
-    // month_year no formato "YYYY-MM" (igual ao campo month_year da Campaign)
-    const month = r.due_date.toISOString().slice(0, 7)
-    if (!openBoletosByMonth[month]) openBoletosByMonth[month] = []
-    openBoletosByMonth[month].push(cnpj)
-  }
 
   const serialized = campaigns.map(c => ({
     id:           c.id,
@@ -95,7 +79,6 @@ export default async function EnviarCobrancaPage() {
         campaigns={serialized as any}
         defaultCampaignId={serialized[0]?.id}
         templates={templates}
-        openBoletosByMonth={openBoletosByMonth}
       />
     </div>
   )

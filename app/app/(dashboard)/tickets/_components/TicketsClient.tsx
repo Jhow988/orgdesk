@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useMemo, useTransition, useRef, useEffect } from 'react'
+import { useState, useTransition, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   MessageSquare, Search, Plus, X, AlertCircle,
   Clock, CheckCircle2, CircleDot, RefreshCw,
+  ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { createTicketAction } from '@/app/actions/tickets'
 
@@ -108,7 +109,6 @@ function NewTicketModal({
   const [loadingClients, setLoadingClients] = useState(true)
   const clientInputRef = useRef<HTMLInputElement>(null)
 
-  // Load client cache on mount, refresh every minute
   useEffect(() => {
     let alive = true
     async function load() {
@@ -183,7 +183,6 @@ function NewTicketModal({
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
-          {/* Client search */}
           <div>
             <label className="block mb-1.5 text-xs font-medium text-zinc-400">Cliente</label>
             {selectedClient && !clientOpen ? (
@@ -306,27 +305,61 @@ function NewTicketModal({
 export function TicketsClient({
   tickets,
   stats,
+  total,
+  page,
+  pages,
+  currentStatus,
+  currentPriority,
+  currentSearch,
 }: {
-  tickets: Ticket[]
-  stats:   Stats
+  tickets:         Ticket[]
+  stats:           Stats
+  total:           number
+  page:            number
+  pages:           number
+  currentStatus:   string
+  currentPriority: string
+  currentSearch:   string
 }) {
   const router = useRouter()
-  const [search,         setSearch]         = useState('')
-  const [statusFilter,   setStatusFilter]   = useState('all')
-  const [priorityFilter, setPriorityFilter] = useState('all')
-  const [showModal,      setShowModal]      = useState(false)
+  const [showModal, setShowModal] = useState(false)
+  const [search,    setSearch]    = useState(currentSearch)
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const filtered = useMemo(() => tickets.filter(t => {
-    if (statusFilter   !== 'all' && t.status   !== statusFilter)   return false
-    if (priorityFilter !== 'all' && t.priority !== priorityFilter) return false
-    if (search) {
-      const q = search.toLowerCase()
-      if (!t.title.toLowerCase().includes(q) &&
-          !t.clientName.toLowerCase().includes(q) &&
-          !String(t.number).includes(q)) return false
-    }
-    return true
-  }), [tickets, statusFilter, priorityFilter, search])
+  // Atualiza URL com os filtros — reseta para page 1 quando filtro muda
+  const pushFilter = useCallback((updates: Record<string, string>) => {
+    const params = new URLSearchParams({
+      status:   currentStatus,
+      priority: currentPriority,
+      search:   currentSearch,
+      page:     '1',
+    })
+    Object.entries(updates).forEach(([k, v]) => params.set(k, v))
+
+    // Limpa params padrão para URL limpa
+    if (params.get('status')   === 'all') params.delete('status')
+    if (params.get('priority') === 'all') params.delete('priority')
+    if (!params.get('search'))            params.delete('search')
+    if (params.get('page')     === '1')   params.delete('page')
+
+    router.push(`/tickets?${params.toString()}`)
+  }, [router, currentStatus, currentPriority, currentSearch])
+
+  // Debounce na busca — 400ms
+  function handleSearchChange(value: string) {
+    setSearch(value)
+    if (searchTimer.current) clearTimeout(searchTimer.current)
+    searchTimer.current = setTimeout(() => pushFilter({ search: value }), 400)
+  }
+
+  function goToPage(p: number) {
+    const params = new URLSearchParams()
+    if (currentStatus   !== 'all') params.set('status',   currentStatus)
+    if (currentPriority !== 'all') params.set('priority', currentPriority)
+    if (currentSearch)             params.set('search',   currentSearch)
+    if (p > 1)                     params.set('page',     String(p))
+    router.push(`/tickets?${params.toString()}`)
+  }
 
   const statCards = [
     { label: 'Total',            value: stats.total,         icon: MessageSquare, color: 'text-zinc-400' },
@@ -362,15 +395,15 @@ export function TicketsClient({
           <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none" />
           <input
             value={search}
-            onChange={e => setSearch(e.target.value)}
+            onChange={e => handleSearchChange(e.target.value)}
             placeholder="Buscar por nº, título ou cliente…"
             className="w-full rounded-lg border border-white/[0.08] bg-white/[0.04] pl-8 pr-3 py-2 text-xs text-zinc-200 placeholder-zinc-600 focus:border-white/20 focus:outline-none"
           />
         </div>
 
         <select
-          value={statusFilter}
-          onChange={e => setStatusFilter(e.target.value)}
+          value={currentStatus}
+          onChange={e => pushFilter({ status: e.target.value })}
           className="rounded-lg border border-white/[0.08] bg-zinc-900 px-3 py-2 text-xs text-zinc-300 focus:outline-none"
         >
           <option value="all">Todos os status</option>
@@ -382,8 +415,8 @@ export function TicketsClient({
         </select>
 
         <select
-          value={priorityFilter}
-          onChange={e => setPriorityFilter(e.target.value)}
+          value={currentPriority}
+          onChange={e => pushFilter({ priority: e.target.value })}
           className="rounded-lg border border-white/[0.08] bg-zinc-900 px-3 py-2 text-xs text-zinc-300 focus:outline-none"
         >
           <option value="all">Todas as prioridades</option>
@@ -418,8 +451,8 @@ export function TicketsClient({
             </tr>
           </thead>
           <tbody className="divide-y divide-white/[0.04]">
-            {filtered.map(t => {
-              const sc = STATUS_CFG[t.status]   ?? STATUS_CFG.OPEN
+            {tickets.map(t => {
+              const sc = STATUS_CFG[t.status]    ?? STATUS_CFG.OPEN
               const pc = PRIORITY_CFG[t.priority] ?? PRIORITY_CFG.MEDIUM
               return (
                 <tr
@@ -452,19 +485,71 @@ export function TicketsClient({
           </tbody>
         </table>
 
-        {filtered.length === 0 && (
+        {tickets.length === 0 && (
           <div className="py-10 text-center">
             <AlertCircle size={20} className="mx-auto mb-2 text-zinc-700" />
             <p className="text-sm text-zinc-600">
-              {tickets.length === 0 ? 'Nenhum chamado ainda.' : 'Nenhum chamado com esses filtros.'}
+              {total === 0 ? 'Nenhum chamado ainda.' : 'Nenhum chamado com esses filtros.'}
             </p>
           </div>
         )}
       </div>
 
-      <p className="mt-2 text-[11px] text-zinc-700 text-right">
-        {filtered.length} chamado{filtered.length !== 1 ? 's' : ''}
-      </p>
+      {/* Pagination */}
+      <div className="mt-3 flex items-center justify-between">
+        <p className="text-[11px] text-zinc-700">
+          {total === 0
+            ? 'Nenhum chamado'
+            : `${(page - 1) * 25 + 1}–${Math.min(page * 25, total)} de ${total} chamado${total !== 1 ? 's' : ''}`}
+        </p>
+
+        {pages > 1 && (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => goToPage(page - 1)}
+              disabled={page <= 1}
+              className="rounded-lg border border-white/[0.08] p-1.5 text-zinc-500 hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronLeft size={14} />
+            </button>
+
+            {Array.from({ length: pages }, (_, i) => i + 1)
+              .filter(p => p === 1 || p === pages || Math.abs(p - page) <= 1)
+              .reduce<(number | '...')[]>((acc, p, idx, arr) => {
+                if (idx > 0 && typeof arr[idx - 1] === 'number' && (p as number) - (arr[idx - 1] as number) > 1) {
+                  acc.push('...')
+                }
+                acc.push(p)
+                return acc
+              }, [])
+              .map((p, idx) =>
+                p === '...' ? (
+                  <span key={`ellipsis-${idx}`} className="px-1 text-xs text-zinc-700">…</span>
+                ) : (
+                  <button
+                    key={p}
+                    onClick={() => goToPage(p as number)}
+                    className={`min-w-[28px] rounded-lg border px-2 py-1 text-xs transition-colors ${
+                      p === page
+                        ? 'border-indigo-500/40 bg-indigo-500/10 text-indigo-400'
+                        : 'border-white/[0.08] text-zinc-500 hover:text-zinc-200'
+                    }`}
+                  >
+                    {p}
+                  </button>
+                )
+              )}
+
+            <button
+              onClick={() => goToPage(page + 1)}
+              disabled={page >= pages}
+              className="rounded-lg border border-white/[0.08] p-1.5 text-zinc-500 hover:text-zinc-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        )}
+      </div>
     </>
   )
 }

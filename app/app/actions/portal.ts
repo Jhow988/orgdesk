@@ -95,19 +95,35 @@ export async function verifyPortalAccessAction(
     return { error: 'E-mail ou CNPJ incorreto.' }
   }
 
-  // Record portal access
-  await adminPrisma.$executeRaw`
-    UPDATE clients SET last_portal_access = NOW() WHERE portal_token = ${token}
-  `
+  // Record portal access + fetch de dados em paralelo
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [, allSends, rawArticles, rawTickets] = await Promise.all([
+    adminPrisma.$executeRaw`
+      UPDATE clients SET last_portal_access = NOW() WHERE portal_token = ${token}
+    `,
+    adminPrisma.campaignSend.findMany({
+      where:   { client_cnpj: cnpjDigits },
+      orderBy: { created_at: 'desc' },
+      include: { campaign: { select: { id: true, label: true } } },
+    }),
+    adminPrisma.knowledgeArticle.findMany({
+      where:   { organization_id: client.organization_id, visibility: 'PUBLIC', status: 'PUBLISHED' } as any,
+      orderBy: [{ category: 'asc' }, { updated_at: 'desc' }],
+      select:  { id: true, title: true, category: true, content: true, updated_at: true },
+    }),
+    adminPrisma.ticket.findMany({
+      where:   { client_id: client.id },
+      orderBy: { updated_at: 'desc' },
+      include: {
+        messages: {
+          where:   { is_internal: false },
+          orderBy: { created_at: 'asc' },
+        },
+      },
+    }),
+  ])
 
-  // Fetch sends
-  const allSends = await adminPrisma.campaignSend.findMany({
-    where:   { client_cnpj: cnpjDigits },
-    orderBy: { created_at: 'desc' },
-    include: { campaign: { select: { id: true, label: true } } },
-  })
-
-  const sends: Send[] = allSends.map(s => ({
+  const sends: Send[] = (allSends as any[]).map((s: any) => ({
     id:            s.id,
     campaignId:    s.campaign.id,
     campaignLabel: s.campaign.label,
@@ -121,13 +137,6 @@ export async function verifyPortalAccessAction(
       : null,
   }))
 
-  // Fetch public knowledge articles for this org
-  const rawArticles = await adminPrisma.knowledgeArticle.findMany({
-    where:   { organization_id: client.organization_id, visibility: 'PUBLIC', status: 'PUBLISHED' } as any,
-    orderBy: [{ category: 'asc' }, { updated_at: 'desc' }],
-    select:  { id: true, title: true, category: true, content: true, updated_at: true },
-  })
-
   const articles: PortalArticle[] = rawArticles.map((a: any) => ({
     id:        a.id,
     title:     a.title,
@@ -139,19 +148,7 @@ export async function verifyPortalAccessAction(
     }).format(a.updated_at),
   }))
 
-  // Fetch tickets (public messages only)
-  const rawTickets = await adminPrisma.ticket.findMany({
-    where:   { client_id: client.id },
-    orderBy: { updated_at: 'desc' },
-    include: {
-      messages: {
-        where:   { is_internal: false },
-        orderBy: { created_at: 'asc' },
-      },
-    },
-  })
-
-  const tickets: PortalTicket[] = rawTickets.map(t => ({
+  const tickets: PortalTicket[] = (rawTickets as any[]).map((t: any) => ({
     id:       t.id,
     number:   t.number,
     title:    t.title,
@@ -160,7 +157,7 @@ export async function verifyPortalAccessAction(
     priority: t.priority as string,
     createdAt: fmtDate(t.created_at),
     updatedAt: fmtDate(t.updated_at),
-    messages:  t.messages.map(m => ({
+    messages:  t.messages.map((m: any) => ({
       id:         m.id,
       body:       m.body,
       authorType: m.author_type,
@@ -200,37 +197,43 @@ export async function createPortalTicketAction(
   const client = rows[0]
   if (!client) return { error: 'Sessão inválida.' }
 
-  // Next ticket number for this org
-  const last = await adminPrisma.ticket.findFirst({
-    where:   { organization_id: client.organization_id },
-    orderBy: { number: 'desc' },
-    select:  { number: true },
-  })
-  const nextNumber = (last?.number ?? 0) + 1
+  // Usa transação com lock na org para evitar race condition no número do ticket
+  const ticket = await adminPrisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM organizations WHERE id = ${client.organization_id} FOR UPDATE`
 
-  const ticket = await adminPrisma.ticket.create({
-    data: {
-      organization_id: client.organization_id,
-      number:          nextNumber,
-      client_id:       clientId,
-      opened_by:       clientId,
-      opened_by_type:  'client',
-      title:           title.trim(),
-      category:        category?.trim() || null,
-      status:          'OPEN',
-      priority:        (priority ?? 'MEDIUM') as any,
-    },
-  })
+    const last = await tx.ticket.findFirst({
+      where:   { organization_id: client.organization_id },
+      orderBy: { number: 'desc' },
+      select:  { number: true },
+    })
+    const nextNumber = (last?.number ?? 0) + 1
 
-  // First message
-  await adminPrisma.ticketMessage.create({
-    data: {
-      ticket_id:   ticket.id,
-      author_id:   clientId,
-      author_type: 'client',
-      body:        body.trim(),
-      is_internal: false,
-    },
+    const created = await tx.ticket.create({
+      data: {
+        organization_id: client.organization_id,
+        number:          nextNumber,
+        client_id:       clientId,
+        opened_by:       clientId,
+        opened_by_type:  'client',
+        title:           title.trim(),
+        category:        category?.trim() || null,
+        status:          'OPEN',
+        priority:        (priority ?? 'MEDIUM') as any,
+      },
+    })
+
+    // First message dentro da mesma transação
+    await tx.ticketMessage.create({
+      data: {
+        ticket_id:   created.id,
+        author_id:   clientId,
+        author_type: 'client',
+        body:        body.trim(),
+        is_internal: false,
+      },
+    })
+
+    return created
   })
 
   return { ticketId: ticket.id }

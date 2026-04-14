@@ -6,11 +6,13 @@ import { revalidatePath } from 'next/cache'
 import { buildModuleAccessMap, getEffectiveAccess, hasAccess, MODULES } from '@/lib/modules'
 import type { AccessLevel } from '@/lib/modules'
 import { logActivity } from '@/lib/activity'
+import { getCustomPermissions, invalidatePermissionsCache } from '@/lib/permissions-cache'
 
 /**
  * Checks if the current user has the required access level for a module.
  * Returns an error string if denied, null if allowed.
- * ORG_ADMIN / SUPER_ADMIN always pass.
+ * ORG_ADMIN / SUPER_ADMIN always pass (sem consulta ao banco).
+ * Demais roles: consulta cacheada (TTL 2 min) para evitar query por action.
  */
 export async function checkModuleAccess(
   module: string,
@@ -22,16 +24,7 @@ export async function checkModuleAccess(
   const role = session.user.role
   if (['SUPER_ADMIN', 'ORG_ADMIN'].includes(role)) return null
 
-  const membership = await prisma.membership.findUnique({
-    where: { user_id_organization_id: { user_id: session.user.id, organization_id: session.user.orgId } },
-    include: { permissions: true },
-  })
-
-  const custom: Record<string, AccessLevel> = {}
-  for (const p of membership?.permissions ?? []) {
-    custom[p.module] = p.access as AccessLevel
-  }
-
+  const custom = await getCustomPermissions(session.user.id, session.user.orgId)
   const effective = getEffectiveAccess(role, module, custom)
   return hasAccess(effective, required) ? null : 'Sem permissão para esta operação.'
 }
@@ -43,28 +36,18 @@ async function requireOrgAdmin() {
   return { orgId: session.user.orgId, userId: session.user.id }
 }
 
-/** Load custom permissions for the current user (used in layout) */
+/** Load custom permissions for the current user (used in layout) — cacheado */
 export async function getMyModuleAccessAction(): Promise<Record<string, AccessLevel>> {
   const session = await auth()
   if (!session?.user?.orgId) return {}
 
   const role = session.user.role
 
-  // ORG_ADMIN / SUPER_ADMIN always get full access — no custom restrictions
   if (['SUPER_ADMIN', 'ORG_ADMIN'].includes(role)) {
     return buildModuleAccessMap(role, {})
   }
 
-  const membership = await prisma.membership.findUnique({
-    where: { user_id_organization_id: { user_id: session.user.id, organization_id: session.user.orgId } },
-    include: { permissions: true },
-  })
-
-  const custom: Record<string, AccessLevel> = {}
-  for (const p of membership?.permissions ?? []) {
-    custom[p.module] = p.access as AccessLevel
-  }
-
+  const custom = await getCustomPermissions(session.user.id, session.user.orgId)
   return buildModuleAccessMap(role, custom)
 }
 
@@ -123,6 +106,9 @@ export async function saveUserPermissionsAction(
         })
       )
   )
+
+  // Invalida cache do usuário afetado para que a mudança seja refletida imediatamente
+  invalidatePermissionsCache(membership.user_id, orgId)
 
   const session = await auth()
   await logActivity({ orgId, userId: session?.user?.id, action: 'permissions.updated', entity: 'permissions', entityId: membershipId })

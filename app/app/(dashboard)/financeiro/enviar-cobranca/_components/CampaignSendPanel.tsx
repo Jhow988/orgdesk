@@ -33,10 +33,9 @@ interface Campaign {
 }
 
 interface Props {
-  campaigns:           Campaign[]
-  defaultCampaignId?:  string
-  templates:           EmailTemplateRow[]
-  openBoletosByMonth:  Record<string, string[]>  // "YYYY-MM" → cnpj[]
+  campaigns:          Campaign[]
+  defaultCampaignId?: string
+  templates:          EmailTemplateRow[]
 }
 
 const STATUS_LABEL: Record<SendStatus, string> = {
@@ -68,7 +67,7 @@ const STATUS_DOT: Record<SendStatus, string> = {
 
 const PAGE_SIZE = 20
 
-export function CampaignSendPanel({ campaigns, defaultCampaignId, templates, openBoletosByMonth }: Props) {
+export function CampaignSendPanel({ campaigns, defaultCampaignId, templates }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
@@ -84,12 +83,6 @@ export function CampaignSendPanel({ campaigns, defaultCampaignId, templates, ope
   const campaign = campaigns.find(c => c.id === campaignId)
   const sends    = campaign?.sends ?? []
 
-  // Set de CNPJs em aberto no Bling para o mês desta campanha
-  const openBoletoSet = useMemo(() => {
-    const month = campaign?.month_year ?? ''
-    return new Set(openBoletosByMonth[month] ?? [])
-  }, [campaign?.month_year, openBoletosByMonth])
-
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
     return sends.filter(s => {
@@ -97,14 +90,10 @@ export function CampaignSendPanel({ campaigns, defaultCampaignId, templates, ope
         s.client_name.toLowerCase().includes(q) ||
         s.client_cnpj.includes(q) ||
         s.emails.some(e => e.toLowerCase().includes(q))
-      const matchStatus = statusFilter === 'Todas'
-        ? true
-        : statusFilter === 'BOLETO_ABERTO'
-          ? openBoletoSet.has(s.client_cnpj.replace(/\D/g, ''))
-          : s.status === statusFilter
+      const matchStatus = statusFilter === 'Todas' || s.status === statusFilter
       return matchSearch && matchStatus
     })
-  }, [sends, search, statusFilter, openBoletoSet])
+  }, [sends, search, statusFilter])
 
   const totalPages  = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
@@ -263,12 +252,11 @@ export function CampaignSendPanel({ campaigns, defaultCampaignId, templates, ope
           className="rounded-md border border-white/[0.1] bg-zinc-900 px-3 py-2 text-xs text-zinc-200 focus:outline-none"
           style={{ colorScheme: 'dark' }}
         >
-          <option value="Todas"         className="bg-zinc-900 text-zinc-200">Todas</option>
-          <option value="PENDING"       className="bg-zinc-900 text-zinc-200">Pendente</option>
-          <option value="SENT"          className="bg-zinc-900 text-zinc-200">Enviado</option>
-          <option value="FAILED"        className="bg-zinc-900 text-zinc-200">Falhou</option>
-          <option value="NO_EMAIL"      className="bg-zinc-900 text-zinc-200">Sem e-mail</option>
-          <option value="BOLETO_ABERTO" className="bg-zinc-900 text-amber-300">Boleto em aberto (Bling)</option>
+          <option value="Todas"    className="bg-zinc-900 text-zinc-200">Todas</option>
+          <option value="PENDING"  className="bg-zinc-900 text-zinc-200">Pendente</option>
+          <option value="SENT"     className="bg-zinc-900 text-zinc-200">Enviado</option>
+          <option value="FAILED"   className="bg-zinc-900 text-zinc-200">Falhou</option>
+          <option value="NO_EMAIL" className="bg-zinc-900 text-zinc-200">Sem e-mail</option>
         </select>
         <button
           onClick={() => handleSend(filtered.filter(s => s.status === 'PENDING' || s.status === 'FAILED').map(s => s.id))}

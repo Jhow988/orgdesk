@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
-  LayoutDashboard, Building2, Receipt,
+  LayoutDashboard, Building2,
   Megaphone, BarChart2, MessageSquare, Users, Package,
   UserCog, FileCheck, FileSignature, Briefcase, Shield,
   Settings, MapPin, Send, SendHorizonal, Mail, ClipboardList, BookOpen, Tag, LibraryBig,
@@ -53,7 +53,6 @@ const NAV_SECTIONS: NavSection[] = [
     items: [
       { href: '/financeiro/enviar-cobranca', label: 'Enviar Cobrança',  icon: SendHorizonal, module: 'cobranca' },
       { href: '/campaigns',                  label: 'Campanhas',        icon: Megaphone,     module: 'campaigns' },
-      { href: '/invoices',                   label: 'Contas a Receber', icon: Receipt,       module: 'invoices' },
       { href: '/financeiro/rastreamento',    label: 'Rastreamento',     icon: MapPin,        module: 'rastreamento' },
       { href: '/financeiro/log-envios',      label: 'Log de Envios',    icon: Send,          module: 'log_envios' },
       { href: '/financeiro/relatorios',      label: 'Relatórios',       icon: BarChart2,     module: 'fin_relatorios' },

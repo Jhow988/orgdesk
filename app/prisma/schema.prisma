@@ -181,52 +181,11 @@ model Organization {
   proposals      Proposal[]
   contracts      Contract[]
   pix_charges          PixCharge[]
-  bling_integration    BlingIntegration?
-  account_receivables  AccountReceivable[]
   client_tech_sheets   ClientTechSheet[]
   sales_labels         SalesLabel[]
   knowledge_articles   KnowledgeArticle[]
 
   @@map("organizations")
-}
-
-model BlingIntegration {
-  id                String    @id @default(cuid())
-  organization_id   String    @unique
-  access_token_enc  String
-  refresh_token_enc String
-  expires_at        DateTime
-  last_sync_at      DateTime?
-  created_at        DateTime  @default(now())
-  updated_at        DateTime  @updatedAt
-
-  organization Organization @relation(fields: [organization_id], references: [id])
-
-  @@map("bling_integrations")
-}
-
-model AccountReceivable {
-  id              String    @id @default(cuid())
-  organization_id String
-  bling_id        String
-  client_name     String
-  client_cnpj     String?
-  document_number String?
-  due_date        DateTime
-  competence_date DateTime?
-  value           Decimal   @db.Decimal(15, 2)
-  balance         Decimal   @db.Decimal(15, 2)
-  status          Int       // 1=Em Aberto 2=Recebido 3=Cancelado 9=Parcial
-  description     String?
-  category        String?
-  created_at      DateTime  @default(now())
-  updated_at      DateTime  @updatedAt
-
-  organization Organization @relation(fields: [organization_id], references: [id])
-
-  @@unique([organization_id, bling_id])
-  @@index([organization_id, due_date])
-  @@map("account_receivables")
 }
 
 model User {
@@ -305,7 +264,6 @@ model Client {
   address_zip        String?
   notes              String?
   is_active           Boolean   @default(true)
-  bling_id            String?
   portal_token        String?   @unique @default(cuid())
   last_portal_access  DateTime?
   created_at          DateTime  @default(now())
@@ -669,14 +627,12 @@ model Product {
   unit            String?     @default("un")
   price           Decimal     @db.Decimal(12, 2) @default(0)
   is_active       Boolean     @default(true)
-  bling_id        String?
   created_at      DateTime    @default(now())
   updated_at      DateTime    @updatedAt
 
   organization   Organization   @relation(fields: [organization_id], references: [id])
   proposal_items ProposalItem[]
 
-  @@unique([organization_id, bling_id])
   @@index([organization_id])
   @@map("products")
 }

@@ -39,6 +39,13 @@ export async function getPresignedUrl(key: string, expiresIn = 900): Promise<str
   )
 }
 
+export async function fetchFile(key: string): Promise<Buffer> {
+  const res = await s3.send(new GetObjectCommand({ Bucket: BUCKET, Key: key }))
+  const chunks: Uint8Array[] = []
+  for await (const chunk of res.Body as any) chunks.push(chunk)
+  return Buffer.concat(chunks)
+}
+
 export function buildKey(orgSlug: string, ...parts: string[]): string {
   return [orgSlug, ...parts].join('/')
 }

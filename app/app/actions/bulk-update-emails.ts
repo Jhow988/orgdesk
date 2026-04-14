@@ -2,7 +2,6 @@
 
 import { auth } from '@/auth'
 import { adminPrisma } from '@/lib/prisma'
-import { updateContatoBling } from '@/lib/bling'
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
 
@@ -234,11 +233,10 @@ LRB SANTANA SP SERVICOS MEDICOS LTDA - mednet santana;mauricio@mednet-barueri.co
 CARDIOVITA SERVICOS MEDICOS LTDA - EPP caçapava;sandraregina@clinicacardiovita.com.br;18674947000224;`
 
 export interface BulkEmailResult {
-  updated:     number
-  skipped:     number
-  notFound:    number
-  blingErrors: number
-  log:         string[]
+  updated:  number
+  skipped:  number
+  notFound: number
+  log:      string[]
 }
 
 export async function bulkUpdateEmailsAction(): Promise<BulkEmailResult | { error: string }> {
@@ -246,7 +244,7 @@ export async function bulkUpdateEmailsAction(): Promise<BulkEmailResult | { erro
   if (!session?.user?.orgId) redirect('/dashboard')
   const orgId = session.user.orgId as string
 
-  const result: BulkEmailResult = { updated: 0, skipped: 0, notFound: 0, blingErrors: 0, log: [] }
+  const result: BulkEmailResult = { updated: 0, skipped: 0, notFound: 0, log: [] }
 
   const lines = CSV.split('\n').slice(1) // skip header
 
@@ -260,7 +258,7 @@ export async function bulkUpdateEmailsAction(): Promise<BulkEmailResult | { erro
 
     const client = await adminPrisma.client.findUnique({
       where:  { organization_id_cnpj: { organization_id: orgId, cnpj } },
-      select: { id: true, name: true, email: true, bling_id: true },
+      select: { id: true, name: true, email: true },
     })
 
     if (!client) {
@@ -278,15 +276,6 @@ export async function bulkUpdateEmailsAction(): Promise<BulkEmailResult | { erro
       where: { id: client.id },
       data:  { email },
     })
-
-    if (client.bling_id) {
-      try {
-        await updateContatoBling(orgId, client.bling_id, { name: client.name, email })
-      } catch (e) {
-        result.blingErrors++
-        result.log.push(`⚠ Bling error ${client.name}: ${(e as Error).message}`)
-      }
-    }
 
     result.updated++
     result.log.push(`✓ ${client.name} (${cnpj}): ${prev} → ${email}`)
