@@ -52,6 +52,7 @@ export function ClientsTable({ clients }: Props) {
     address_district: '', address_city: '', address_state: '', address_zip: '',
   })
   const [createError, setCreateError] = useState<string | null>(null)
+  const [cnpjLookupState, setCnpjLookupState] = useState<'idle' | 'loading' | 'found' | 'error'>('idle')
 
   const [editing, setEditing] = useState<Client | null>(null)
   const [editForm, setEditForm] = useState<ClientUpdateData>({
@@ -104,7 +105,42 @@ export function ClientsTable({ clients }: Props) {
       address_district: '', address_city: '', address_state: '', address_zip: '',
     })
     setCreateError(null)
+    setCnpjLookupState('idle')
     setCreating(true)
+  }
+
+  async function handleCnpjChange(masked: string) {
+    setCreateForm(f => ({ ...f, cnpj: masked }))
+    const digits = masked.replace(/\D/g, '')
+
+    if (digits.length !== 14) {
+      if (cnpjLookupState !== 'idle') setCnpjLookupState('idle')
+      return
+    }
+
+    setCnpjLookupState('loading')
+    try {
+      const res = await fetch(`https://brasilapi.com.br/api/cnpj/v1/${digits}`)
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      setCreateForm(f => ({
+        ...f,
+        name:               data.razao_social        ?? f.name,
+        trade_name:         data.nome_fantasia        ?? f.trade_name,
+        email:              data.email               ?? f.email,
+        phone:              data.ddd_telefone_1       ? data.ddd_telefone_1.replace(/\D/g, '').replace(/^(\d{2})(\d+)/, '($1) $2') : f.phone,
+        address_street:     data.logradouro          ?? f.address_street,
+        address_number:     data.numero              ?? f.address_number,
+        address_complement: data.complemento         ?? f.address_complement,
+        address_district:   data.bairro              ?? f.address_district,
+        address_city:       data.municipio           ?? f.address_city,
+        address_state:      data.uf                  ?? f.address_state,
+        address_zip:        data.cep?.replace(/\D/g, '') ?? f.address_zip,
+      }))
+      setCnpjLookupState('found')
+    } catch {
+      setCnpjLookupState('error')
+    }
   }
 
   function handleCreate() {
@@ -187,13 +223,27 @@ export function ClientsTable({ clients }: Props) {
               <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Dados Gerais</p>
               <div>
                 <label className="mb-1 block text-xs text-zinc-400">CPF / CNPJ *</label>
-                <input
-                  type="text"
-                  value={createForm.cnpj}
-                  onChange={e => setCreateForm(f => ({ ...f, cnpj: maskCpfCnpj(e.target.value) }))}
-                  placeholder="000.000.000-00 ou 00.000.000/0000-00"
-                  className="w-full rounded-md border border-white/[0.08] bg-white/[0.05] px-3 py-2 text-sm text-zinc-200 outline-none focus:border-indigo-500/50 font-mono"
-                />
+                <div className="relative">
+                  <input
+                    type="text"
+                    value={createForm.cnpj}
+                    onChange={e => handleCnpjChange(maskCpfCnpj(e.target.value))}
+                    placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                    className="w-full rounded-md border border-white/[0.08] bg-white/[0.05] px-3 py-2 text-sm text-zinc-200 outline-none focus:border-indigo-500/50 font-mono pr-8"
+                  />
+                  {cnpjLookupState === 'loading' && (
+                    <span className="absolute right-2.5 top-2.5 text-xs text-zinc-500 animate-pulse">...</span>
+                  )}
+                  {cnpjLookupState === 'found' && (
+                    <span className="absolute right-2.5 top-2 text-emerald-400 text-xs">✓</span>
+                  )}
+                  {cnpjLookupState === 'error' && (
+                    <span className="absolute right-2.5 top-2 text-zinc-600 text-xs" title="CNPJ não encontrado na base pública">?</span>
+                  )}
+                </div>
+                {cnpjLookupState === 'found' && (
+                  <p className="mt-1 text-xs text-emerald-500">Dados preenchidos automaticamente via Receita Federal</p>
+                )}
               </div>
               {([
                 { label: 'Razão Social *',  key: 'name' },
