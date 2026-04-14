@@ -9,6 +9,7 @@ const TENANT_MODELS = [
   'CampaignSend', 'EmailLog', 'Ticket', 'TicketMessage', 'TicketAttachment',
   'Notification', 'ActivityLog', 'EmailTemplate', 'WebhookEvent', 'Membership',
   'Product', 'Proposal', 'Contract', 'PixCharge', 'Empresa',
+  'Carteira', 'CategoriaFinanceira', 'CentroCusto', 'ContaPagar', 'ContaReceber',
 ]
 
 function createClient() {
