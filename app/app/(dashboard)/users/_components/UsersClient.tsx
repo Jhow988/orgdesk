@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useTransition } from 'react'
+import { useState, useTransition, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { UserPlus, Pencil, X, Eye, EyeOff, ShieldCheck } from 'lucide-react'
+import { UserPlus, Pencil, X, Eye, EyeOff, ShieldCheck, Search } from 'lucide-react'
 import { createUserAction, updateUserAction, toggleUserAction } from '@/app/actions/users'
 
 const ROLES = [
@@ -182,10 +182,27 @@ function UserFormModal({
 
 export function UsersClient({ users: initial, currentUserId }: Props) {
   const router = useRouter()
-  const [users,     setUsers]     = useState(initial)
-  const [modal,     setModal]     = useState<'new' | OrgUser | null>(null)
-  const [toggling,  setToggling]  = useState<string | null>(null)
-  const [toast,     setToast]     = useState<string | null>(null)
+  const [users,        setUsers]     = useState(initial)
+  const [modal,        setModal]     = useState<'new' | OrgUser | null>(null)
+  const [toggling,     setToggling]  = useState<string | null>(null)
+  const [toast,        setToast]     = useState<string | null>(null)
+  const [search,       setSearch]    = useState('')
+  const [roleFilter,   setRole]      = useState('ALL')
+  const [statusFilter, setStatus]    = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL')
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase()
+    return initial.filter(u => {
+      if (roleFilter !== 'ALL' && u.role !== roleFilter) return false
+      if (statusFilter === 'ACTIVE' && !u.is_active) return false
+      if (statusFilter === 'INACTIVE' && u.is_active) return false
+      if (!q) return true
+      return (
+        u.name.toLowerCase().includes(q) ||
+        u.email.toLowerCase().includes(q)
+      )
+    })
+  }, [initial, search, roleFilter, statusFilter])
 
   function showToast(msg: string) {
     setToast(msg)
@@ -222,7 +239,7 @@ export function UsersClient({ users: initial, currentUserId }: Props) {
       )}
 
       {/* Toolbar */}
-      <div className="mb-6 flex items-center justify-between">
+      <div className="mb-5 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold text-zinc-100">Usuários</h1>
           <p className="mt-1 text-sm text-zinc-500">
@@ -238,6 +255,56 @@ export function UsersClient({ users: initial, currentUserId }: Props) {
         </button>
       </div>
 
+      {/* Search + Filters */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 flex-1 min-w-[200px] max-w-sm">
+          <Search size={14} className="shrink-0 text-zinc-500" />
+          <input
+            type="text"
+            placeholder="Buscar por nome ou e-mail…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="flex-1 bg-transparent text-sm text-zinc-200 placeholder:text-zinc-600 outline-none"
+          />
+        </div>
+
+        {/* Role filter */}
+        <div className="flex items-center gap-1">
+          {[{ value: 'ALL', label: 'Todos' }, ...ROLES].map(r => (
+            <button
+              key={r.value}
+              onClick={() => setRole(r.value)}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                roleFilter === r.value
+                  ? 'bg-indigo-600 text-white'
+                  : 'border border-white/[0.08] bg-white/[0.03] text-zinc-400 hover:text-zinc-200 hover:border-white/[0.15]'
+              }`}
+            >
+              {r.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Status filter */}
+        <div className="flex items-center gap-1">
+          {(['ALL', 'ACTIVE', 'INACTIVE'] as const).map(s => (
+            <button
+              key={s}
+              onClick={() => setStatus(s)}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                statusFilter === s
+                  ? 'bg-indigo-600 text-white'
+                  : 'border border-white/[0.08] bg-white/[0.03] text-zinc-400 hover:text-zinc-200 hover:border-white/[0.15]'
+              }`}
+            >
+              {s === 'ALL' ? 'Todos' : s === 'ACTIVE' ? 'Ativos' : 'Inativos'}
+            </button>
+          ))}
+        </div>
+
+        <span className="ml-auto text-xs text-zinc-600">{filtered.length} de {initial.length}</span>
+      </div>
+
       {/* Table */}
       <div className="rounded-xl border border-white/[0.08] bg-white/[0.03] overflow-hidden">
         <table className="w-full text-sm">
@@ -251,13 +318,15 @@ export function UsersClient({ users: initial, currentUserId }: Props) {
             </tr>
           </thead>
           <tbody>
-            {initial.length === 0 ? (
+            {filtered.length === 0 ? (
               <tr>
                 <td colSpan={5} className="px-5 py-10 text-center text-zinc-500">
-                  Nenhum usuário cadastrado.
+                  {search || roleFilter !== 'ALL' || statusFilter !== 'ALL'
+                    ? 'Nenhum usuário encontrado para os filtros aplicados.'
+                    : 'Nenhum usuário cadastrado.'}
                 </td>
               </tr>
-            ) : initial.map(u => (
+            ) : filtered.map(u => (
               <tr
                 key={u.user_id}
                 className="border-b border-white/[0.05] last:border-0 hover:bg-white/[0.02] transition-colors"
