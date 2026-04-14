@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { createEmpresaAction, updateEmpresaAction, deleteEmpresaAction } from '@/app/actions/empresa'
-import { Building2, Plus, Pencil, Trash2, X, Check } from 'lucide-react'
+import { Building2, Plus, Pencil, Trash2, X, Check, KeyRound } from 'lucide-react'
 
 interface Empresa {
   id: string
@@ -13,6 +13,8 @@ interface Empresa {
   phone: string | null
   address: string | null
   is_active: boolean
+  asaas_api_key: string | null
+  asaas_environment: string
   created_at: Date
 }
 
@@ -38,10 +40,13 @@ interface EmpresaFormData {
   phone: string
   address: string
   is_active: boolean
+  asaas_api_key: string
+  asaas_environment: string
 }
 
 const EMPTY_FORM: EmpresaFormData = {
   name: '', cnpj: '', email: '', phone: '', address: '', is_active: true,
+  asaas_api_key: '', asaas_environment: 'SANDBOX',
 }
 
 export function EmpresaManager({ empresas: initial }: { empresas: Empresa[] }) {
@@ -67,6 +72,8 @@ export function EmpresaManager({ empresas: initial }: { empresas: Empresa[] }) {
       phone: e.phone ?? '',
       address: e.address ?? '',
       is_active: e.is_active,
+      asaas_api_key: e.asaas_api_key ?? '',
+      asaas_environment: e.asaas_environment ?? 'SANDBOX',
     })
     setEditing(e)
     setShowCreate(false)
@@ -98,6 +105,8 @@ export function EmpresaManager({ empresas: initial }: { empresas: Empresa[] }) {
         phone: form.phone || null,
         address: form.address || null,
         is_active: form.is_active,
+        asaas_api_key: form.asaas_api_key || null,
+        asaas_environment: form.asaas_environment,
       })
       if (res?.error) { setError(res.error); return }
       closeForm()
@@ -209,8 +218,40 @@ export function EmpresaManager({ empresas: initial }: { empresas: Empresa[] }) {
               />
             </div>
 
+            {/* Asaas Integration */}
+            <div className="sm:col-span-2 border-t border-zinc-700 pt-3">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-widest text-zinc-500">Integração Asaas</p>
+            </div>
+
+            <div className="sm:col-span-2">
+              <label className="mb-1 block text-xs text-zinc-400">API Key do Asaas</label>
+              <input
+                name="asaas_api_key"
+                type="password"
+                value={form.asaas_api_key}
+                onChange={e => setForm(f => ({ ...f, asaas_api_key: e.target.value }))}
+                className="w-full rounded-md border border-zinc-600 bg-zinc-700 px-3 py-2 text-sm text-zinc-100 placeholder-zinc-500 focus:border-indigo-500 focus:outline-none font-mono"
+                placeholder="$aact_..."
+                autoComplete="off"
+              />
+              <p className="mt-1 text-xs text-zinc-600">Encontre em: Asaas → Integrações → Chaves de API</p>
+            </div>
+
+            <div>
+              <label className="mb-1 block text-xs text-zinc-400">Ambiente Asaas</label>
+              <select
+                name="asaas_environment"
+                value={form.asaas_environment}
+                onChange={e => setForm(f => ({ ...f, asaas_environment: e.target.value }))}
+                className="w-full rounded-md border border-zinc-600 bg-zinc-700 px-3 py-2 text-sm text-zinc-100 focus:border-indigo-500 focus:outline-none"
+              >
+                <option value="SANDBOX">Sandbox (testes)</option>
+                <option value="PRODUCTION">Produção</option>
+              </select>
+            </div>
+
             {editing && (
-              <div className="flex items-center gap-2 sm:col-span-2">
+              <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
                   id="is_active"
@@ -264,6 +305,15 @@ export function EmpresaManager({ empresas: initial }: { empresas: Empresa[] }) {
                     <span className="text-sm font-medium text-zinc-200">{empresa.name}</span>
                     {!empresa.is_active && (
                       <span className="rounded bg-zinc-700 px-1.5 py-0.5 text-[10px] text-zinc-400">Inativa</span>
+                    )}
+                    {empresa.asaas_api_key ? (
+                      <span className="flex items-center gap-1 rounded bg-emerald-900/30 px-1.5 py-0.5 text-[10px] text-emerald-400">
+                        <KeyRound size={9} /> Asaas {empresa.asaas_environment === 'PRODUCTION' ? 'Prod' : 'Sandbox'}
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 rounded bg-zinc-700 px-1.5 py-0.5 text-[10px] text-zinc-500">
+                        <KeyRound size={9} /> sem API Key
+                      </span>
                     )}
                   </div>
                   <span className="text-xs text-zinc-500">{formatCnpj(empresa.cnpj)}</span>

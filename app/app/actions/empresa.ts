@@ -46,6 +46,8 @@ export async function createEmpresaAction(_prev: unknown, formData: FormData) {
   const email = (formData.get('email') as string)?.trim() || null
   const phone = (formData.get('phone') as string)?.trim() || null
   const address = (formData.get('address') as string)?.trim() || null
+  const asaas_api_key = (formData.get('asaas_api_key') as string)?.trim() || null
+  const asaas_environment = (formData.get('asaas_environment') as string) || 'SANDBOX'
 
   if (!name) return { error: 'Nome é obrigatório.' }
   if (cnpjRaw.length !== 14) return { error: 'CNPJ inválido. Informe 14 dígitos.' }
@@ -56,7 +58,7 @@ export async function createEmpresaAction(_prev: unknown, formData: FormData) {
   if (existing) return { error: 'Este CNPJ já está cadastrado.' }
 
   await prisma.empresa.create({
-    data: { organization_id: orgId, name, cnpj: cnpjRaw, email, phone, address },
+    data: { organization_id: orgId, name, cnpj: cnpjRaw, email, phone, address, asaas_api_key, asaas_environment },
   })
 
   revalidatePath('/settings/empresa')
@@ -72,6 +74,8 @@ export async function updateEmpresaAction(
     phone?: string | null
     address?: string | null
     is_active: boolean
+    asaas_api_key?: string | null
+    asaas_environment?: string
   }
 ) {
   const orgId = await requireOrg()
@@ -99,6 +103,8 @@ export async function updateEmpresaAction(
       phone: data.phone?.trim() || null,
       address: data.address?.trim() || null,
       is_active: data.is_active,
+      asaas_api_key: data.asaas_api_key?.trim() || null,
+      asaas_environment: data.asaas_environment ?? 'SANDBOX',
     },
   })
 
