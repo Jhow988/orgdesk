@@ -1,6 +1,6 @@
 'use client'
 
-import { useActionState } from 'react'
+import { useActionState, useState } from 'react'
 
 type State = { error?: string; success?: string } | null
 
@@ -13,11 +13,13 @@ interface Props {
     unit?: string | null
     price?: any
     is_active?: boolean
+    stock_quantity?: number | null
   }
 }
 
 export function ProductForm({ action, defaultValues }: Props) {
   const [state, formAction, isPending] = useActionState(action, null)
+  const [type, setType] = useState(defaultValues?.type ?? 'SERVICE')
 
   return (
     <form action={formAction} className="space-y-5">
@@ -37,7 +39,7 @@ export function ProductForm({ action, defaultValues }: Props) {
 
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-zinc-400">Tipo *</label>
-          <select name="type" defaultValue={defaultValues?.type ?? 'SERVICE'}
+          <select name="type" value={type} onChange={e => setType(e.target.value)}
             className="w-full rounded-md border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-sm text-zinc-100 focus:border-white/20 focus:outline-none">
             <option value="SERVICE">Serviço</option>
             <option value="PRODUCT">Produto</option>
@@ -56,6 +58,22 @@ export function ProductForm({ action, defaultValues }: Props) {
             defaultValue={defaultValues?.price != null ? Number(defaultValues.price).toFixed(2) : '0.00'}
             className="w-full rounded-md border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-sm text-zinc-100 focus:border-white/20 focus:outline-none" />
         </div>
+
+        {type === 'PRODUCT' && (
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-zinc-400">Quantidade em estoque</label>
+            <input
+              name="stock_quantity"
+              type="number"
+              min="0"
+              step="1"
+              defaultValue={defaultValues?.stock_quantity ?? ''}
+              placeholder="Ex: 100"
+              className="w-full rounded-md border border-white/[0.1] bg-white/[0.06] px-3 py-2 text-sm text-zinc-100 placeholder-zinc-600 focus:border-white/20 focus:outline-none"
+            />
+            <p className="text-[11px] text-zinc-600">Deixe em branco para não controlar estoque</p>
+          </div>
+        )}
 
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-zinc-400">Status</label>

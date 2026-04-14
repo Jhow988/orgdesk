@@ -15,6 +15,7 @@ interface Product {
   unit: string | null
   price: any
   is_active: boolean
+  stock_quantity: number | null
 }
 
 export function ProductsTable({ products }: { products: Product[] }) {
@@ -96,6 +97,7 @@ export function ProductsTable({ products }: { products: Product[] }) {
               <th className="px-4 py-3 font-medium">Tipo</th>
               <th className="px-4 py-3 font-medium">Unidade</th>
               <th className="px-4 py-3 font-medium">Preço padrão</th>
+              <th className="px-4 py-3 font-medium">Estoque</th>
               <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium"></th>
             </tr>
@@ -103,7 +105,7 @@ export function ProductsTable({ products }: { products: Product[] }) {
           <tbody>
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={6} className="px-4 py-12 text-center text-zinc-500">
+                <td colSpan={7} className="px-4 py-12 text-center text-zinc-500">
                   {search || typeFilter !== 'ALL' || statusFilter !== 'ALL'
                     ? 'Nenhum item encontrado para os filtros aplicados.'
                     : 'Nenhum produto ou serviço cadastrado.'}
@@ -125,6 +127,19 @@ export function ProductsTable({ products }: { products: Product[] }) {
                 <td className="px-4 py-3 text-zinc-400">{p.unit}</td>
                 <td className="px-4 py-3 text-zinc-300 font-mono">
                   {Number(p.price).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                </td>
+                <td className="px-4 py-3 text-xs">
+                  {p.type === 'PRODUCT' ? (
+                    p.stock_quantity != null ? (
+                      <span className={`font-medium ${p.stock_quantity === 0 ? 'text-red-400' : p.stock_quantity <= 5 ? 'text-amber-400' : 'text-zinc-300'}`}>
+                        {p.stock_quantity} {p.unit ?? 'un'}
+                      </span>
+                    ) : (
+                      <span className="text-zinc-600">—</span>
+                    )
+                  ) : (
+                    <span className="text-zinc-700">N/A</span>
+                  )}
                 </td>
                 <td className="px-4 py-3">
                   <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${

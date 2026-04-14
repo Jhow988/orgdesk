@@ -30,7 +30,7 @@ export default async function ProductsPage() {
         </Link>
       </div>
 
-      <ProductsTable products={products.map(p => ({ ...p, price: Number(p.price) }))} />
+      <ProductsTable products={products.map(p => ({ ...p, price: Number(p.price), stock_quantity: p.stock_quantity ?? null }))} />
     </div>
   )
 }

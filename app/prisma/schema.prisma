@@ -827,6 +827,7 @@ model Product {
   description     String?
   unit            String?     @default("un")
   price           Decimal     @db.Decimal(12, 2) @default(0)
+  stock_quantity  Int?
   is_active       Boolean     @default(true)
   created_at      DateTime    @default(now())
   updated_at      DateTime    @updatedAt

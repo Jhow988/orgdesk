@@ -21,6 +21,7 @@ export async function createProductAction(_prev: unknown, formData: FormData) {
   const name = (formData.get('name') as string)?.trim()
   if (!name) return { error: 'Nome é obrigatório.' }
 
+  const stockRaw = formData.get('stock_quantity') as string
   const product = await prisma.product.create({
     data: {
       organization_id: orgId,
@@ -30,6 +31,7 @@ export async function createProductAction(_prev: unknown, formData: FormData) {
       price: parseFloat(formData.get('price') as string) || 0,
       description: (formData.get('description') as string)?.trim() || null,
       is_active: formData.get('is_active') !== '0',
+      stock_quantity: stockRaw !== '' && stockRaw != null ? parseInt(stockRaw) : null,
     },
   })
 
@@ -46,6 +48,7 @@ export async function updateProductAction(id: string, _prev: unknown, formData: 
   const name = (formData.get('name') as string)?.trim()
   if (!name) return { error: 'Nome é obrigatório.' }
 
+  const stockRaw = formData.get('stock_quantity') as string
   await prisma.product.updateMany({
     where: { id, organization_id: orgId },
     data: {
@@ -55,6 +58,7 @@ export async function updateProductAction(id: string, _prev: unknown, formData: 
       price: parseFloat(formData.get('price') as string) || 0,
       description: (formData.get('description') as string)?.trim() || null,
       is_active: formData.get('is_active') !== '0',
+      stock_quantity: stockRaw !== '' && stockRaw != null ? parseInt(stockRaw) : null,
     },
   })
 
