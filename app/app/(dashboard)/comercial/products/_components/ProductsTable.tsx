@@ -138,7 +138,7 @@ export function ProductsTable({ products }: { products: Product[] }) {
                       <span className="text-zinc-600">—</span>
                     )
                   ) : (
-                    <span className="text-zinc-700">N/A</span>
+                    <span className="text-zinc-700">—</span>
                   )}
                 </td>
                 <td className="px-4 py-3">
