@@ -51,6 +51,11 @@ const NAV_SECTIONS: NavSection[] = [
   {
     label: 'Financeiro',
     items: [
+      { href: '/financeiro/carteiras',       label: 'Carteiras',        icon: BarChart2,     module: 'cobranca' },
+      { href: '/financeiro/contas-pagar',    label: 'Contas a Pagar',   icon: Send,          module: 'cobranca' },
+      { href: '/financeiro/contas-receber',  label: 'Contas a Receber', icon: MapPin,        module: 'cobranca' },
+      { href: '/financeiro/categorias',      label: 'Categorias',       icon: Tag,           module: 'cobranca' },
+      { href: '/financeiro/centros-custo',   label: 'Centros de Custo', icon: ClipboardList, module: 'cobranca' },
       { href: '/financeiro/enviar-cobranca', label: 'Enviar Cobrança',  icon: SendHorizonal, module: 'cobranca' },
       { href: '/campaigns',                  label: 'Campanhas',        icon: Megaphone,     module: 'campaigns' },
       { href: '/financeiro/rastreamento',    label: 'Rastreamento',     icon: MapPin,        module: 'rastreamento' },
