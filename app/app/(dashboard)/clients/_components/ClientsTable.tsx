@@ -41,8 +41,9 @@ function formatCpfCnpj(v: string) {
 export function ClientsTable({ clients }: Props) {
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
-  const [search, setSearch] = useState('')
-  const [page, setPage]     = useState(1)
+  const [search, setSearch]         = useState('')
+  const [statusFilter, setStatus]   = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL')
+  const [page, setPage]             = useState(1)
   const [toast, setToast]   = useState<{ msg: string; ok: boolean } | null>(null)
   const [bulkResult, setBulkResult] = useState<BulkEmailResult | null>(null)
   const [creating, setCreating] = useState(false)
@@ -68,14 +69,18 @@ export function ClientsTable({ clients }: Props) {
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase()
-    if (!q) return clients
-    return clients.filter(c =>
-      c.name.toLowerCase().includes(q) ||
-      c.cnpj.includes(q) ||
-      (c.email ?? '').toLowerCase().includes(q) ||
-      (c.trade_name ?? '').toLowerCase().includes(q)
-    )
-  }, [clients, search])
+    return clients.filter(c => {
+      if (statusFilter === 'ACTIVE' && !c.is_active) return false
+      if (statusFilter === 'INACTIVE' && c.is_active) return false
+      if (!q) return true
+      return (
+        c.name.toLowerCase().includes(q) ||
+        c.cnpj.includes(q) ||
+        (c.email ?? '').toLowerCase().includes(q) ||
+        (c.trade_name ?? '').toLowerCase().includes(q)
+      )
+    })
+  }, [clients, search, statusFilter])
 
   const totalPages  = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
   const currentPage = Math.min(page, totalPages)
@@ -482,16 +487,34 @@ export function ClientsTable({ clients }: Props) {
         </div>
       </div>
 
-      {/* Search */}
-      <div className="mb-4 flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 max-w-sm">
-        <Search size={14} className="shrink-0 text-zinc-500" />
-        <input
-          type="text"
-          placeholder="Buscar nome, CNPJ ou e-mail…"
-          value={search}
-          onChange={e => { setSearch(e.target.value); setPage(1) }}
-          className="flex-1 bg-transparent text-sm text-zinc-200 placeholder:text-zinc-600 outline-none"
-        />
+      {/* Search + Filters */}
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 flex-1 min-w-[200px] max-w-sm">
+          <Search size={14} className="shrink-0 text-zinc-500" />
+          <input
+            type="text"
+            placeholder="Buscar nome, CPF/CNPJ ou e-mail…"
+            value={search}
+            onChange={e => { setSearch(e.target.value); setPage(1) }}
+            className="flex-1 bg-transparent text-sm text-zinc-200 placeholder:text-zinc-600 outline-none"
+          />
+        </div>
+        <div className="flex items-center gap-1">
+          {(['ALL', 'ACTIVE', 'INACTIVE'] as const).map(s => (
+            <button
+              key={s}
+              onClick={() => { setStatus(s); setPage(1) }}
+              className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                statusFilter === s
+                  ? 'bg-indigo-600 text-white'
+                  : 'border border-white/[0.08] bg-white/[0.03] text-zinc-400 hover:text-zinc-200 hover:border-white/[0.15]'
+              }`}
+            >
+              {s === 'ALL' ? 'Todos' : s === 'ACTIVE' ? 'Ativos' : 'Inativos'}
+            </button>
+          ))}
+        </div>
+        <span className="ml-auto text-xs text-zinc-600">{filtered.length} de {clients.length}</span>
       </div>
 
       {/* Table */}
