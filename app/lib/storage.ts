@@ -1,14 +1,26 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
+function buildEndpoint(): string {
+  const host   = process.env.MINIO_ENDPOINT!
+  const port   = process.env.MINIO_PORT
+  const ssl    = process.env.MINIO_USE_SSL === 'true'
+  const scheme = ssl ? 'https' : 'http'
+  // Omit port when using defaults (443 for HTTPS, 80 for HTTP) — needed for R2 and other hosted S3
+  if (!port || (ssl && port === '443') || (!ssl && port === '80')) {
+    return `${scheme}://${host}`
+  }
+  return `${scheme}://${host}:${port}`
+}
+
 const s3 = new S3Client({
-  endpoint: `http${process.env.MINIO_USE_SSL === 'true' ? 's' : ''}://${process.env.MINIO_ENDPOINT}:${process.env.MINIO_PORT}`,
-  region: 'us-east-1',
+  endpoint: buildEndpoint(),
+  region: process.env.MINIO_REGION ?? 'auto',
   credentials: {
-    accessKeyId: process.env.MINIO_ACCESS_KEY!,
+    accessKeyId:     process.env.MINIO_ACCESS_KEY!,
     secretAccessKey: process.env.MINIO_SECRET_KEY!,
   },
-  forcePathStyle: true, // Necessário para MinIO
+  forcePathStyle: true,
 })
 
 const BUCKET = process.env.MINIO_BUCKET!
