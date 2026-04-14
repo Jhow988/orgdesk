@@ -73,6 +73,7 @@ const NAV_SECTIONS: NavSection[] = [
       { href: '/settings/permissions', label: 'Permissões',             icon: Shield,        roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
       { href: '/settings/activity',   label: 'Histórico de Atividades', icon: ClipboardList, roles: ['SUPER_ADMIN', 'ORG_ADMIN'] },
       { href: '/settings/company',    label: 'Dados da empresa',       icon: Settings,      module: 'settings_company' },
+      { href: '/settings/empresa',   label: 'Empresas (CNPJs)',        icon: Building2,     module: 'settings_company' },
       { href: '/settings/email',      label: 'Perfil de E-mail',       icon: Mail,          module: 'settings_email' },
     ],
   },

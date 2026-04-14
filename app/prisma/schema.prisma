@@ -184,8 +184,33 @@ model Organization {
   client_tech_sheets   ClientTechSheet[]
   sales_labels         SalesLabel[]
   knowledge_articles   KnowledgeArticle[]
+  empresas             Empresa[]
 
   @@map("organizations")
+}
+
+model Empresa {
+  id              String   @id @default(cuid())
+  organization_id String
+  name            String
+  cnpj            String
+  email           String?
+  phone           String?
+  address         String?
+  logo_url        String?
+  is_active       Boolean  @default(true)
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organization_id], references: [id])
+  clients      Client[]
+  boletos      Boleto[]
+  invoices     Invoice[]
+  pix_charges  PixCharge[]
+
+  @@unique([organization_id, cnpj])
+  @@index([organization_id])
+  @@map("empresas")
 }
 
 model User {
@@ -263,6 +288,7 @@ model Client {
   address_state      String?
   address_zip        String?
   notes              String?
+  empresa_id          String?
   is_active           Boolean   @default(true)
   portal_token        String?   @unique @default(cuid())
   last_portal_access  DateTime?
@@ -270,6 +296,7 @@ model Client {
   updated_at          DateTime  @updatedAt
 
   organization Organization  @relation(fields: [organization_id], references: [id])
+  empresa      Empresa?       @relation(fields: [empresa_id], references: [id])
   contacts     ClientContact[]
   boletos      Boleto[]
   invoices     Invoice[]
@@ -363,12 +390,14 @@ model Boleto {
   pdf_key          String?
   pdf_size_kb      Float?
   campaign_send_id String?     @unique
+  empresa_id       String?
   notes            String?
   created_at       DateTime    @default(now())
   updated_at       DateTime    @updatedAt
 
   organization  Organization  @relation(fields: [organization_id], references: [id])
   client        Client        @relation(fields: [client_id], references: [id])
+  empresa       Empresa?      @relation(fields: [empresa_id], references: [id])
   campaign_send CampaignSend? @relation(fields: [campaign_send_id], references: [id])
 
   @@index([organization_id])
@@ -393,12 +422,14 @@ model Invoice {
   xml_key          String?
   pdf_size_kb      Float?
   campaign_send_id String?       @unique
+  empresa_id       String?
   notes            String?
   created_at       DateTime      @default(now())
   updated_at       DateTime      @updatedAt
 
   organization  Organization  @relation(fields: [organization_id], references: [id])
   client        Client        @relation(fields: [client_id], references: [id])
+  empresa       Empresa?      @relation(fields: [empresa_id], references: [id])
   campaign_send CampaignSend? @relation(fields: [campaign_send_id], references: [id])
 
   @@index([organization_id])
@@ -789,6 +820,7 @@ model PixCharge {
   qr_code         String?   @db.Text
   qr_code_image   String?
   status          PixStatus @default(PENDING)
+  empresa_id      String?
   expires_at      DateTime?
   paid_at         DateTime?
   notes           String?
@@ -797,6 +829,7 @@ model PixCharge {
 
   organization Organization @relation(fields: [organization_id], references: [id])
   client       Client       @relation(fields: [client_id], references: [id])
+  empresa      Empresa?     @relation(fields: [empresa_id], references: [id])
 
   @@index([organization_id])
   @@index([organization_id, client_id])
