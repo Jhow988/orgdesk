@@ -7,10 +7,9 @@ FROM base AS deps
 COPY app/package.json app/package-lock.json ./
 RUN NODE_ENV=development npm ci --legacy-peer-deps
 
-# Install only production deps (includes prisma CLI and all its transitive deps)
-FROM base AS prod-deps
-COPY app/package.json app/package-lock.json ./
-RUN npm ci --omit=dev --legacy-peer-deps
+# Install only production deps — depends on deps to force sequential execution and avoid OOM
+FROM deps AS prod-deps
+RUN npm prune --omit=dev --legacy-peer-deps
 
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules
@@ -33,7 +32,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/prisma.config.ts ./prisma.config.ts
 
-# Use full production node_modules (includes prisma CLI + all deps like valibot, pathe, etc.)
+# Production node_modules (devDeps removed via prune)
 COPY --from=prod-deps /app/node_modules ./node_modules
 
 COPY --chown=nextjs:nodejs app/entrypoint.sh ./entrypoint.sh
